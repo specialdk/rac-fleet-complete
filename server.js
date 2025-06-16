@@ -12,19 +12,25 @@ const FLEET_COMPLETE_CONFIG = {
     hubApiUrl: 'https://api.fleetcomplete.com',
     graphqlUrl: 'https://api.fleetcomplete.com/graphql',
     graphiqlUrl: 'https://api.fleetcomplete.com/graphiql?path=/graphql',
-
+    
     // Legacy REST API (if needed)
     legacyApiUrl: 'https://app.ecofleet.com/seeme/Api',
-
+    
     // Authentication endpoints
     tokenUrl: 'https://api.fleetcomplete.com/login/token',
     refreshUrl: 'https://api.fleetcomplete.com/login/refresh',
     userInfoUrl: 'https://api.fleetcomplete.com/login/userinfo',
-
+    
     // Credentials (set via environment variables)
     username: process.env.FLEET_COMPLETE_USERNAME,
     password: process.env.FLEET_COMPLETE_PASSWORD,
-    apiKey: process.env.FLEET_COMPLETE_API_KEY // for legacy API if needed
+    apiKey: process.env.FLEET_COMPLETE_API_KEY, // for legacy API if needed
+    
+    // Rate limiting info
+    rateLimit: {
+        requests: 90,
+        period: 30 // seconds
+    }
 };
 
 // In-memory token storage (replace with database in production)
@@ -44,39 +50,95 @@ function isTokenExpired() {
     return !tokenData.accessToken || !tokenData.expiresAt || Date.now() >= tokenData.expiresAt;
 }
 
-// Authenticate with Fleet Complete API
+// Authenticate with Fleet Complete API - MULTIPLE METHODS
 async function authenticateFleetComplete() {
     try {
         console.log('🔄 Authenticating with Fleet Complete API...');
+        
+        // Method 1: Try HUB API authentication
+        try {
+            const response = await fetch(FLEET_COMPLETE_CONFIG.tokenUrl, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                },
+                body: new URLSearchParams({
+                    username: FLEET_COMPLETE_CONFIG.username,
+                    password: FLEET_COMPLETE_CONFIG.password
+                })
+            });
 
-        const response = await fetch(FLEET_COMPLETE_CONFIG.tokenUrl, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-            },
-            body: new URLSearchParams({
-                username: FLEET_COMPLETE_CONFIG.username,
-                password: FLEET_COMPLETE_CONFIG.password
-            })
-        });
-
-        if (!response.ok) {
-            throw new Error(`Authentication failed: ${response.status} ${response.statusText}`);
+            if (response.ok) {
+                const data = await response.json();
+                tokenData.accessToken = data.access_token;
+                tokenData.refreshToken = data.refresh_token;
+                tokenData.expiresAt = Date.now() + (5 * 60 * 1000);
+                
+                console.log('✅ HUB API authentication successful');
+                await getUserInfo();
+                return true;
+            } else {
+                console.log('❌ HUB API failed:', response.status, await response.text());
+            }
+        } catch (error) {
+            console.log('❌ HUB API error:', error.message);
         }
 
-        const data = await response.json();
+        // Method 2: Try Legacy API with API key
+        if (FLEET_COMPLETE_CONFIG.apiKey) {
+            try {
+                console.log('🔄 Trying legacy API with API key...');
+                
+                const testResponse = await fetch(`${FLEET_COMPLETE_CONFIG.legacyApiUrl}/Reports/listReports?key=${FLEET_COMPLETE_CONFIG.apiKey}&json=1`);
+                
+                if (testResponse.ok) {
+                    tokenData.accessToken = FLEET_COMPLETE_CONFIG.apiKey;
+                    tokenData.expiresAt = Date.now() + (24 * 60 * 60 * 1000); // 24 hours
+                    
+                    console.log('✅ Legacy API key authentication successful');
+                    return true;
+                } else {
+                    console.log('❌ Legacy API failed:', testResponse.status, await testResponse.text());
+                }
+            } catch (error) {
+                console.log('❌ Legacy API error:', error.message);
+            }
+        }
 
-        // Store tokens (access_token is valid for 5 minutes)
-        tokenData.accessToken = data.access_token;
-        tokenData.refreshToken = data.refresh_token;
-        tokenData.expiresAt = Date.now() + (5 * 60 * 1000); // 5 minutes
+        // Method 3: Try alternative endpoints
+        const alternativeUrls = [
+            'https://app.ecofleet.com/seeme/api/auth/login',
+            'https://powerfleet.com/api/auth/login',
+            'https://api.powerfleet.com/login/token'
+        ];
 
-        console.log('✅ Fleet Complete authentication successful');
+        for (const url of alternativeUrls) {
+            try {
+                console.log(`🔄 Trying alternative endpoint: ${url}`);
+                
+                const response = await fetch(url, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded',
+                    },
+                    body: new URLSearchParams({
+                        username: FLEET_COMPLETE_CONFIG.username,
+                        password: FLEET_COMPLETE_CONFIG.password
+                    })
+                });
 
-        // Get user info to obtain userId and fleetId
-        await getUserInfo();
+                if (response.ok) {
+                    const data = await response.json();
+                    console.log('✅ Alternative endpoint successful:', url);
+                    return true;
+                }
+            } catch (error) {
+                console.log(`❌ ${url} failed:`, error.message);
+            }
+        }
 
-        return true;
+        throw new Error('All authentication methods failed. API access may not be enabled for your account. Contact fcapi@fleetcomplete.com for API access.');
+        
     } catch (error) {
         console.error('❌ Fleet Complete authentication failed:', error);
         throw error;
@@ -97,17 +159,17 @@ async function getUserInfo() {
         }
 
         const userInfo = await response.json();
-
+        
         if (userInfo && userInfo.length > 0) {
             tokenData.userId = userInfo[0].userId;
             tokenData.fleetId = userInfo[0].fleetId || userInfo[0].fleetName;
-
+            
             console.log('✅ User info retrieved:', {
                 userId: tokenData.userId,
                 fleetName: userInfo[0].fleetName
             });
         }
-
+        
         return userInfo;
     } catch (error) {
         console.error('❌ Failed to get user info:', error);
@@ -119,7 +181,7 @@ async function getUserInfo() {
 async function refreshAccessToken() {
     try {
         console.log('🔄 Refreshing Fleet Complete access token...');
-
+        
         const response = await fetch(FLEET_COMPLETE_CONFIG.refreshUrl, {
             method: 'POST',
             headers: {
@@ -135,10 +197,10 @@ async function refreshAccessToken() {
         }
 
         const data = await response.json();
-
+        
         tokenData.accessToken = data.access_token;
         tokenData.expiresAt = Date.now() + (5 * 60 * 1000); // 5 minutes
-
+        
         console.log('✅ Access token refreshed');
         return true;
     } catch (error) {
@@ -161,7 +223,7 @@ async function ensureValidToken() {
 // Make authenticated GraphQL request
 async function makeGraphQLRequest(query, variables = {}) {
     await ensureValidToken();
-
+    
     const response = await fetch(FLEET_COMPLETE_CONFIG.graphqlUrl, {
         method: 'POST',
         headers: {
@@ -598,7 +660,7 @@ app.get('/api/vehicles', async (req, res) => {
         `;
 
         const result = await makeGraphQLRequest(query);
-
+        
         if (result.errors) {
             throw new Error(result.errors.map(e => e.message).join(', '));
         }
@@ -645,7 +707,7 @@ app.get('/api/locations', async (req, res) => {
         `;
 
         const result = await makeGraphQLRequest(query);
-
+        
         if (result.errors) {
             throw new Error(result.errors.map(e => e.message).join(', '));
         }
@@ -695,7 +757,7 @@ app.get('/api/drivers', async (req, res) => {
         `;
 
         const result = await makeGraphQLRequest(query);
-
+        
         if (result.errors) {
             throw new Error(result.errors.map(e => e.message).join(', '));
         }
@@ -737,7 +799,7 @@ app.get('/api/geofences', async (req, res) => {
         `;
 
         const result = await makeGraphQLRequest(query);
-
+        
         if (result.errors) {
             throw new Error(result.errors.map(e => e.message).join(', '));
         }
@@ -790,7 +852,7 @@ app.listen(port, () => {
     console.log(`📊 Dashboard: http://localhost:${port}`);
     console.log(`🔗 GraphQL API: ${FLEET_COMPLETE_CONFIG.graphqlUrl}`);
     console.log(`🎯 Ready for Fleet Complete integration!`);
-
+    
     if (!FLEET_COMPLETE_CONFIG.username || !FLEET_COMPLETE_CONFIG.password) {
         console.warn('⚠️  Please set FLEET_COMPLETE_USERNAME and FLEET_COMPLETE_PASSWORD environment variables');
     }
