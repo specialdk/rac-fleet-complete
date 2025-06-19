@@ -8,7 +8,7 @@ import {
   ListToolsRequestSchema,
   McpError,
 } from '@modelcontextprotocol/sdk/types.js';
-import fetch from 'node-fetch';
+// Using built-in fetch (Node.js 18+)
 
 // Geotab API client class
 class GeotabAPI {
