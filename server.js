@@ -176,25 +176,35 @@ async function geotabCall(method, params = {}) {
     throw new Error('Not authenticated to Geotab');
   }
 
+  const requestBody = {
+    method,
+    params: {
+      credentials: sessionState.credentials,
+      ...params
+    }
+  };
+
+  // Log request for debugging (omit credentials)
+  const logBody = JSON.parse(JSON.stringify(requestBody));
+  delete logBody.params.credentials;
+  console.log(`[geotabCall] ${method}:`, JSON.stringify(logBody));
+
   const response = await fetch(`https://${GEOTAB_SERVER}/apiv1`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      method,
-      params: {
-        credentials: sessionState.credentials,
-        ...params
-      }
-    }),
+    body: JSON.stringify(requestBody),
   });
 
   if (!response.ok) {
-    throw new Error(`Geotab API ${response.status}: ${await response.text()}`);
+    const errorText = await response.text();
+    console.error(`[geotabCall] HTTP ${response.status} from Geotab:`, errorText);
+    throw new Error(`Geotab API ${response.status}: ${errorText}`);
   }
 
   const data = await response.json();
   
   if (data.error) {
+    console.error(`[geotabCall] Geotab returned error:`, JSON.stringify(data.error));
     throw new Error(`Geotab API error: ${JSON.stringify(data.error)}`);
   }
 
@@ -369,65 +379,60 @@ app.get('/api/geofences', async (req, res) => {
 });
 
 // Get zone stop events (geofence entry/exit)
+// FIX: Geotab API requires fromDate/toDate/deviceSearch/zoneSearch to be wrapped in a `search` object,
+// not at the top level. Without this wrapping the API returns a 500.
 app.get('/api/zone-events', async (req, res) => {
   try {
     const { fromDate, toDate, deviceId, zoneId } = req.query;
     
-    const search = {
-      typeName: 'ZoneStop',
-    };
+    const searchFilters = {};
+    if (fromDate) searchFilters.fromDate = fromDate;
+    if (toDate) searchFilters.toDate = toDate;
+    if (deviceId) searchFilters.deviceSearch = { id: deviceId };
+    if (zoneId) searchFilters.zoneSearch = { id: zoneId };
 
-    if (fromDate) {
-      search.fromDate = fromDate;
-    }
-    if (toDate) {
-      search.toDate = toDate;
-    }
-    if (deviceId) {
-      search.deviceSearch = { id: deviceId };
-    }
-    if (zoneId) {
-      search.zoneSearch = { id: zoneId };
+    const params = { typeName: 'ZoneStop' };
+    if (Object.keys(searchFilters).length > 0) {
+      params.search = searchFilters;
     }
 
-    const events = await geotabCall('Get', search);
+    const events = await geotabCall('Get', params);
     
     res.json({
       count: events?.length || 0,
       events: events || []
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[/api/zone-events] Error:', err.message);
+    res.status(500).json({ error: err.message, endpoint: '/api/zone-events' });
   }
 });
 
 // Get trips for productivity analysis
+// FIX: Same `search` wrapping fix as /api/zone-events
 app.get('/api/trips', async (req, res) => {
   try {
     const { fromDate, toDate, deviceId } = req.query;
     
-    const search = {
-      typeName: 'Trip',
-    };
+    const searchFilters = {};
+    if (fromDate) searchFilters.fromDate = fromDate;
+    if (toDate) searchFilters.toDate = toDate;
+    if (deviceId) searchFilters.deviceSearch = { id: deviceId };
 
-    if (fromDate) {
-      search.fromDate = fromDate;
-    }
-    if (toDate) {
-      search.toDate = toDate;
-    }
-    if (deviceId) {
-      search.deviceSearch = { id: deviceId };
+    const params = { typeName: 'Trip' };
+    if (Object.keys(searchFilters).length > 0) {
+      params.search = searchFilters;
     }
 
-    const trips = await geotabCall('Get', search);
+    const trips = await geotabCall('Get', params);
     
     res.json({
       count: trips?.length || 0,
       trips: trips || []
     });
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error('[/api/trips] Error:', err.message);
+    res.status(500).json({ error: err.message, endpoint: '/api/trips' });
   }
 });
 
