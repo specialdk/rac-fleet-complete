@@ -1,0 +1,1233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>RAC Fuel Delivery — Operations Dashboard</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2"></script>
+  <style>
+    :root {
+      --color-positive: #107C10;
+      --color-negative: #D13438;
+      --color-warning: #FFB900;
+      --color-primary: #0078D4;
+      --color-primary-dark: #106EBE;
+      --color-text-primary: #201F1E;
+      --color-text-secondary: #605E5C;
+      --color-text-muted: #8A8886;
+      --color-border: #EDEBE9;
+      --bg-page: #F5F5F5;
+      --bg-card: #FFFFFF;
+      --bg-header: #2C3E50;
+      --shadow-card: 0 2px 4px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+      --shadow-card-hover: 0 4px 12px rgba(0,0,0,0.12), 0 2px 4px rgba(0,0,0,0.08);
+      --font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      --header-height: 56px;
+      --drawer-width: 420px;
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: var(--font-family);
+      background: var(--bg-page);
+      height: 100vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    .header {
+      background: var(--bg-header);
+      height: var(--header-height);
+      padding: 0 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-shrink: 0;
+      z-index: 100;
+    }
+
+    .header-left { display: flex; align-items: center; gap: 16px; }
+    .header h1 { font-size: 18px; font-weight: 600; color: white; }
+
+    .header-status {
+      display: flex; align-items: center; gap: 8px;
+      padding: 5px 12px; background: rgba(255,255,255,0.1);
+      border-radius: 20px; font-size: 12px; color: rgba(255,255,255,0.9);
+    }
+    .status-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--color-positive); }
+    .status-dot.warning { background: var(--color-warning); }
+    .status-dot.critical { background: var(--color-negative); animation: pulse 1.5s infinite; }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+    .header-right { display: flex; align-items: center; gap: 10px; }
+
+    /* Truck picker */
+    .truck-picker { position: relative; }
+    .truck-picker-btn {
+      padding: 6px 14px; border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px; font-size: 13px; background: rgba(255,255,255,0.1);
+      color: white; cursor: pointer; display: flex; align-items: center;
+      gap: 8px; min-width: 180px; transition: all 0.2s; font-family: inherit;
+    }
+    .truck-picker-btn:hover { background: rgba(255,255,255,0.2); }
+    .truck-picker-btn .arrow { margin-left: auto; font-size: 10px; transition: transform 0.2s; }
+    .truck-picker.open .truck-picker-btn .arrow { transform: rotate(180deg); }
+
+    .truck-picker-dropdown {
+      position: absolute; top: calc(100% + 4px); left: 0; min-width: 240px;
+      background: var(--bg-header); border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+      z-index: 200; display: none; overflow: hidden;
+    }
+    .truck-picker.open .truck-picker-dropdown { display: block; }
+
+    .truck-option {
+      display: flex; align-items: center; gap: 10px;
+      padding: 10px 16px; cursor: pointer; color: rgba(255,255,255,0.85);
+      font-size: 13px; transition: background 0.15s;
+    }
+    .truck-option:hover { background: rgba(255,255,255,0.1); }
+    .truck-option.selected { color: white; background: rgba(0,120,212,0.3); }
+    .truck-option .check { margin-left: auto; color: var(--color-primary); font-size: 14px; }
+    .truck-option-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
+
+    .btn-refresh {
+      padding: 6px 16px; background: var(--color-primary); color: white;
+      border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+      cursor: pointer; transition: background 0.2s; font-family: inherit;
+    }
+    .btn-refresh:hover { background: var(--color-primary-dark); }
+
+    .btn-chat {
+      padding: 6px 14px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: white; border: none; border-radius: 6px; font-size: 13px;
+      font-weight: 600; cursor: pointer; display: flex; align-items: center;
+      gap: 6px; font-family: inherit;
+    }
+
+    .btn-connection {
+      padding: 6px 14px; background: rgba(255,255,255,0.1);
+      color: white; border: 1px solid rgba(255,255,255,0.3);
+      border-radius: 6px; font-size: 13px; cursor: pointer; font-family: inherit;
+      text-decoration: none; display: flex; align-items: center; gap: 6px;
+    }
+
+    /* ── Main Layout ── */
+    .main {
+      display: flex; flex: 1; overflow: hidden;
+    }
+
+    .content {
+      flex: 1; overflow-y: auto; padding: 24px;
+      transition: margin-right 0.3s;
+    }
+    .content.chat-open { margin-right: var(--drawer-width); }
+
+    /* ── Period Toggle (segmented control) ── */
+    .period-toggle-wrapper {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+    .period-toggle {
+      display: inline-flex;
+      background: var(--bg-card);
+      border-radius: 8px;
+      padding: 4px;
+      box-shadow: var(--shadow-card);
+      gap: 2px;
+    }
+    .period-btn {
+      padding: 8px 20px;
+      border: none;
+      background: transparent;
+      color: var(--color-text-secondary);
+      font-size: 13px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 6px;
+      font-family: inherit;
+      transition: all 0.2s;
+      min-width: 100px;
+    }
+    .period-btn:hover {
+      background: #F3F2F1;
+      color: var(--color-text-primary);
+    }
+    .period-btn.active {
+      background: var(--color-primary);
+      color: white;
+    }
+    .period-btn.active:hover {
+      background: var(--color-primary-dark);
+    }
+    .period-label {
+      font-size: 13px;
+      color: var(--color-text-secondary);
+      font-weight: 500;
+    }
+
+    /* ── Refresh Bar ── */
+    .refresh-bar {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 8px 0; margin-bottom: 16px;
+      font-size: 12px; color: var(--color-text-muted);
+    }
+
+    /* ── KPI Row ── */
+    .kpi-row {
+      display: grid; grid-template-columns: repeat(4, 1fr);
+      gap: 16px; margin-bottom: 24px;
+    }
+
+    .kpi-card {
+      background: var(--bg-card); border-radius: 8px;
+      padding: 20px; box-shadow: var(--shadow-card);
+      border-left: 4px solid transparent; transition: box-shadow 0.2s;
+    }
+    .kpi-card:hover { box-shadow: var(--shadow-card-hover); }
+    .kpi-card.blue { border-left-color: var(--color-primary); }
+    .kpi-card.green { border-left-color: var(--color-positive); }
+    .kpi-card.amber { border-left-color: var(--color-warning); }
+    .kpi-card.red { border-left-color: var(--color-negative); }
+
+    .kpi-label {
+      font-size: 12px; font-weight: 600; color: var(--color-text-muted);
+      text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
+    }
+    .kpi-value {
+      font-size: 36px; font-weight: 700; color: var(--color-text-primary);
+      line-height: 1; margin-bottom: 6px;
+    }
+    .kpi-sub { font-size: 12px; color: var(--color-text-secondary); }
+    .kpi-trend {
+      font-size: 11px; margin-top: 4px; font-weight: 600;
+      display: inline-flex; align-items: center; gap: 3px;
+    }
+    .kpi-trend.up { color: var(--color-positive); }
+    .kpi-trend.down { color: var(--color-negative); }
+    .kpi-trend.flat { color: var(--color-text-muted); }
+
+    /* ── Section ── */
+    .section-header {
+      display: flex; justify-content: space-between; align-items: center;
+      margin-bottom: 16px;
+    }
+    .section-title { font-size: 16px; font-weight: 600; color: var(--color-text-primary); }
+    .section-sub { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
+
+    /* ── Truck Cards Grid ── */
+    .truck-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 16px; margin-bottom: 24px;
+    }
+
+    .truck-card {
+      background: var(--bg-card); border-radius: 8px;
+      box-shadow: var(--shadow-card); overflow: hidden;
+      transition: box-shadow 0.2s;
+    }
+    .truck-card:hover { box-shadow: var(--shadow-card-hover); }
+
+    .truck-card-header {
+      padding: 14px 16px; display: flex; align-items: center; gap: 10px;
+      border-bottom: 1px solid var(--color-border);
+      border-top: 3px solid var(--color-primary);
+    }
+    .truck-card.RF01 .truck-card-header { border-top-color: #C0392B; }
+    .truck-card.RF02 .truck-card-header { border-top-color: #2980B9; }
+    .truck-emoji { font-size: 22px; }
+    .truck-name { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+    .truck-rego { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
+    .truck-badge {
+      margin-left: auto; padding: 3px 10px; border-radius: 12px;
+      font-size: 11px; font-weight: 600;
+    }
+    .truck-badge.moving { background: #E6F4EA; color: var(--color-positive); }
+    .truck-badge.loading { background: #FFF4CE; color: #7A4F00; }
+    .truck-badge.delivering { background: #E0F2FE; color: #0369A1; }
+    .truck-badge.idle { background: #F3F4F6; color: var(--color-text-secondary); }
+    .truck-badge.at-depot { background: #EFF6FF; color: var(--color-primary); }
+    .truck-badge.unknown { background: #FEE2E2; color: var(--color-negative); }
+
+    .truck-card-body { padding: 14px 16px; }
+
+    .truck-stat-row {
+      display: flex; justify-content: space-between;
+      align-items: center; padding: 6px 0;
+      border-bottom: 1px solid var(--color-border);
+      font-size: 13px;
+    }
+    .truck-stat-row:last-child { border-bottom: none; }
+    .truck-stat-label { color: var(--color-text-secondary); }
+    .truck-stat-value { font-weight: 600; color: var(--color-text-primary); }
+
+    /* ── Alerts Bar ── */
+    .alert-bar {
+      display: flex; align-items: center; gap: 10px;
+      padding: 12px 16px; border-radius: 8px; margin-bottom: 8px;
+      font-size: 13px; font-weight: 500;
+    }
+    .alert-bar.critical { background: #FDE8E8; border: 1px solid #FCA5A5; color: #B91C1C; }
+    .alert-bar.warning  { background: #FEF9C3; border: 1px solid #FDE047; color: #854D0E; }
+    .alert-bar.info     { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
+    .alert-bar .alert-icon { font-size: 16px; flex-shrink: 0; }
+    .alert-bar .alert-count { font-size: 20px; font-weight: 700; margin-right: 4px; }
+
+    /* ── Loading spinner ── */
+    .spinner-sm {
+      display: inline-block; width: 14px; height: 14px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%; animation: spin 0.7s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* ── Chart Section ── */
+    .chart-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-card {
+      background: var(--bg-card); border-radius: 8px;
+      padding: 20px; box-shadow: var(--shadow-card);
+    }
+    .chart-title { font-size: 14px; font-weight: 600; color: var(--color-text-primary); margin-bottom: 4px; }
+    .chart-subtitle { font-size: 11px; color: var(--color-text-muted); margin-bottom: 12px; }
+    .chart-container { position: relative; height: 220px; }
+
+    /* ── AI Chat Drawer ── */
+    .chat-drawer {
+      position: fixed; right: 0; top: var(--header-height);
+      width: var(--drawer-width); height: calc(100vh - var(--header-height));
+      background: var(--bg-card); border-left: 1px solid var(--color-border);
+      display: flex; flex-direction: column; z-index: 150;
+      transform: translateX(100%); transition: transform 0.3s ease;
+      box-shadow: -4px 0 24px rgba(0,0,0,0.12);
+    }
+    .chat-drawer.open { transform: translateX(0); }
+
+    .chat-header {
+      padding: 16px 20px; border-bottom: 1px solid var(--color-border);
+      display: flex; align-items: center; justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .chat-header-title { font-size: 15px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .chat-close { background: none; border: none; font-size: 18px; cursor: pointer; color: var(--color-text-muted); padding: 4px; }
+
+    .chat-messages {
+      flex: 1; overflow-y: auto; padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    .chat-message { max-width: 90%; }
+    .chat-message.user { align-self: flex-end; }
+    .chat-message.assistant { align-self: flex-start; }
+
+    .message-content {
+      padding: 10px 14px; border-radius: 10px;
+      font-size: 13px; line-height: 1.5;
+    }
+    .chat-message.user .message-content {
+      background: var(--color-primary); color: white;
+      border-bottom-right-radius: 3px;
+    }
+    .chat-message.assistant .message-content {
+      background: #F3F2F1; color: var(--color-text-primary);
+      border-bottom-left-radius: 3px;
+    }
+    .message-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; padding: 0 2px; }
+    .message-time { font-size: 11px; color: var(--color-text-muted); }
+    .copy-btn { background: none; border: none; cursor: pointer; font-size: 12px; color: var(--color-text-muted); }
+
+    .typing-indicator {
+      display: none; align-self: flex-start;
+      padding: 10px 14px; background: #F3F2F1;
+      border-radius: 10px; border-bottom-left-radius: 3px;
+    }
+    .typing-dots { display: flex; gap: 4px; }
+    .typing-dots span {
+      width: 6px; height: 6px; background: var(--color-text-muted);
+      border-radius: 50%; animation: bounce 1.2s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+    .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+    @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-6px)} }
+
+    .chat-suggestions {
+      padding: 12px 16px; border-top: 1px solid var(--color-border);
+      display: flex; flex-wrap: wrap; gap: 6px; flex-shrink: 0;
+    }
+    .suggestion-chip {
+      padding: 5px 10px; background: #EFF6FF;
+      color: var(--color-primary); border: 1px solid #BFDBFE;
+      border-radius: 16px; font-size: 11px; cursor: pointer;
+      font-family: inherit; transition: all 0.15s; white-space: nowrap;
+    }
+    .suggestion-chip:hover { background: var(--color-primary); color: white; }
+
+    .chat-input-row {
+      padding: 12px 16px; border-top: 1px solid var(--color-border);
+      display: flex; gap: 8px; flex-shrink: 0;
+    }
+    .chat-input {
+      flex: 1; padding: 8px 12px; border: 1px solid var(--color-border);
+      border-radius: 6px; font-size: 13px; font-family: inherit; outline: none;
+    }
+    .chat-input:focus { border-color: var(--color-primary); }
+    .chat-send {
+      padding: 8px 16px; background: var(--color-primary); color: white;
+      border: none; border-radius: 6px; font-size: 13px; font-weight: 600;
+      cursor: pointer; font-family: inherit;
+    }
+    .chat-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center; padding: 40px; color: var(--color-text-muted);
+    }
+    .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="header">
+    <div class="header-left">
+      <h1>⛽ RAC Fuel Delivery — Operations</h1>
+      <div class="header-status">
+        <div class="status-dot" id="connDot"></div>
+        <span id="connText">Connecting...</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <!-- Truck Picker -->
+      <div class="truck-picker" id="truckPicker">
+        <button class="truck-picker-btn" onclick="toggleTruckPicker()">
+          <span id="truckPickerLabel">🚛 All Trucks</span>
+          <span class="arrow">▼</span>
+        </button>
+        <div class="truck-picker-dropdown" id="truckDropdown">
+          <div class="truck-option selected" data-id="ALL" onclick="selectTruck('ALL','🚛 All Trucks',this)">
+            🚛 All Trucks <span class="check">✓</span>
+          </div>
+          <div class="truck-option-divider"></div>
+          <div class="truck-option" data-id="RF01" onclick="selectTruck('RF01','🔴 RF01 Kenworth T609',this)">🔴 RF01 Kenworth T609</div>
+          <div class="truck-option" data-id="RF02" onclick="selectTruck('RF02','🔵 RF02 SAR Fuel T408',this)">🔵 RF02 SAR Fuel T408</div>
+        </div>
+      </div>
+
+      <button class="btn-refresh" onclick="loadDashboard()">↻ Refresh</button>
+      <button class="btn-chat" onclick="toggleChat()">🤖 Ask Claude</button>
+      <a href="/" class="btn-connection">🔗 Connection</a>
+    </div>
+  </header>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="content" id="mainContent">
+
+      <!-- Period Toggle -->
+      <div class="period-toggle-wrapper">
+        <div class="period-toggle">
+          <button class="period-btn active" data-period="daily" onclick="selectPeriod('daily')">📅 Daily</button>
+          <button class="period-btn" data-period="weekly" onclick="selectPeriod('weekly')">📆 Weekly</button>
+          <button class="period-btn" data-period="monthly" onclick="selectPeriod('monthly')">🗓️ Monthly</button>
+        </div>
+        <div class="period-label" id="periodLabel">Today</div>
+      </div>
+
+      <!-- Refresh bar -->
+      <div class="refresh-bar">
+        <span id="lastUpdated">Loading data...</span>
+        <span id="sessionStatus"></span>
+      </div>
+
+      <!-- KPI Row -->
+      <div class="kpi-row">
+        <div class="kpi-card blue">
+          <div class="kpi-label" id="kpiLoadsLabel">Loads Today</div>
+          <div class="kpi-value" id="kpiLoads">—</div>
+          <div class="kpi-sub" id="kpiLoadsSub">Loading...</div>
+          <div class="kpi-trend" id="kpiLoadsTrend"></div>
+        </div>
+        <div class="kpi-card green">
+          <div class="kpi-label" id="kpiDeliveriesLabel">Deliveries Today</div>
+          <div class="kpi-value" id="kpiDeliveries">—</div>
+          <div class="kpi-sub" id="kpiDeliveriesSub">Loading...</div>
+          <div class="kpi-trend" id="kpiDeliveriesTrend"></div>
+        </div>
+        <div class="kpi-card amber">
+          <div class="kpi-label">Avg Turnaround</div>
+          <div class="kpi-value" id="kpiTurnaround">—</div>
+          <div class="kpi-sub" id="kpiTurnaroundSub">gantry → deliver → back</div>
+          <div class="kpi-trend" id="kpiTurnaroundTrend"></div>
+        </div>
+        <div class="kpi-card red">
+          <div class="kpi-label">Trucks Active Now</div>
+          <div class="kpi-value" id="kpiActive">—</div>
+          <div class="kpi-sub" id="kpiActiveSub">Checking positions...</div>
+        </div>
+      </div>
+
+      <!-- Alerts Bar -->
+      <div id="alertsBar" style="display:none; margin-bottom:16px;"></div>
+
+      <!-- Truck Cards -->
+      <div class="section-header">
+        <div>
+          <div class="section-title" id="sectionTitle">Truck Status</div>
+          <div class="section-sub" id="sectionSub">Real-time activity from FleetComplete</div>
+        </div>
+      </div>
+
+      <div class="truck-grid" id="truckGrid">
+        <!-- Populated by JS -->
+      </div>
+
+      <!-- Charts — 3 equal columns -->
+      <div class="chart-row" id="chartRow">
+        <div class="chart-card">
+          <div class="chart-title">Loads by Truck</div>
+          <div class="chart-subtitle" id="chart1Sub">Gantry visits in the selected period</div>
+          <div class="chart-container">
+            <canvas id="loadsChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Delivery Split</div>
+          <div class="chart-subtitle" id="chart2Sub">Where the fuel went</div>
+          <div class="chart-container">
+            <canvas id="deliveryChart"></canvas>
+          </div>
+        </div>
+        <div class="chart-card">
+          <div class="chart-title">Activity by Hour</div>
+          <div class="chart-subtitle" id="chart3Sub">Zone events by hour of day</div>
+          <div class="chart-container">
+            <canvas id="hourlyChart"></canvas>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- AI Chat Drawer -->
+    <div class="chat-drawer" id="chatDrawer">
+      <div class="chat-header">
+        <div class="chat-header-title">🤖 Ask Claude — Fuel Delivery Analyst</div>
+        <button class="chat-close" onclick="toggleChat()">✕</button>
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-message assistant">
+          <div class="message-content">
+            Hi Gavin! I'm your fuel delivery analyst with live access to RF01 and RF02's movements across RAC's 6 zones.<br><br>
+            Ask me about loads, turnaround times, unusual stops, or anything else you're wondering about.
+          </div>
+        </div>
+      </div>
+
+      <div class="typing-indicator" id="typingIndicator">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>
+
+      <div class="chat-suggestions">
+        <button class="suggestion-chip" onclick="sendSuggestion('Give me a summary of today')">📊 Today's summary</button>
+        <button class="suggestion-chip" onclick="sendSuggestion('Which truck is more productive?')">🏆 Most productive</button>
+        <button class="suggestion-chip" onclick="sendSuggestion('What is our average turnaround time?')">⏱️ Turnaround times</button>
+        <button class="suggestion-chip" onclick="sendSuggestion('Any unusual stops or idle periods today?')">⚠️ Anomalies</button>
+      </div>
+
+      <div class="chat-input-row">
+        <input class="chat-input" id="chatInput" placeholder="Ask about fuel deliveries..." onkeypress="if(event.key==='Enter')sendChat()" />
+        <button class="chat-send" id="chatSend" onclick="sendChat()">Send</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // ── Config ──────────────────────────────────────────────────────────────
+    const API = window.location.origin; // Same origin as dashboard (Railway)
+
+    // Disable datalabels globally — only opt-in per chart
+    Chart.defaults.plugins.datalabels = { display: false };
+
+    // ── State ──────────────────────────────────────────────────────────────
+    let currentPeriod = localStorage.getItem('racFuelPeriod') || 'daily';
+    let currentTruck = 'ALL';
+    let dashData = {
+      vehicles: [],
+      geofences: [],
+      zoneEvents: [],
+      previousEvents: [],
+      locations: []
+    };
+    let chatHistory = [];
+    let loadsChart = null;
+    let deliveryChart = null;
+    let hourlyChart = null;
+
+    // Truck visual config
+    const TRUCK_CONFIG = {
+      'RF01': { emoji: '🔴', color: '#C0392B', name: 'Kenworth T609', class: 'RF01' },
+      'RF02': { emoji: '🔵', color: '#2980B9', name: 'SAR Fuel T408', class: 'RF02' }
+    };
+
+    // Zone classification
+    const ZONE_TYPES = {
+      'Rio Fuel Gantry':   { role: 'load',    emoji: '⛽', color: '#27ae60' },
+      'BP Nhulunbuy':      { role: 'fuel',    emoji: '⛽', color: '#f39c12' },
+      'Mine Fuel Farm':    { role: 'deliver', emoji: '🏭', color: '#8E44AD' },
+      'Gulkula Mine':      { role: 'deliver', emoji: '⛏️', color: '#C0392B' },
+      'Yirrkala Store':    { role: 'other',   emoji: '🏪', color: '#607D8B' },
+      'Quarry Depot':      { role: 'depot',   emoji: '🏠', color: '#2980B9' }
+    };
+
+    // ── Period Management ──────────────────────────────────────────────────
+    function selectPeriod(period) {
+      currentPeriod = period;
+      localStorage.setItem('racFuelPeriod', period);
+
+      // Update button states
+      document.querySelectorAll('.period-btn').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.period === period);
+      });
+
+      // Update labels based on period
+      const labels = {
+        daily:   { label: 'Today', kpi: 'Today', sub: 'vs yesterday' },
+        weekly:  { label: 'This Week (last 7 days)', kpi: 'This Week', sub: 'vs previous 7 days' },
+        monthly: { label: 'This Month', kpi: 'This Month', sub: 'vs last month' }
+      };
+      document.getElementById('periodLabel').textContent = labels[period].label;
+      document.getElementById('kpiLoadsLabel').textContent = `Loads ${labels[period].kpi}`;
+      document.getElementById('kpiDeliveriesLabel').textContent = `Deliveries ${labels[period].kpi}`;
+
+      // Reload with new period
+      loadDashboard();
+    }
+
+    function getDateRange(period) {
+      const now = new Date();
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      let from, to, prevFrom, prevTo;
+
+      if (period === 'daily') {
+        from = today;
+        to = now;
+        prevFrom = new Date(today); prevFrom.setDate(prevFrom.getDate() - 1);
+        prevTo = new Date(today);
+      } else if (period === 'weekly') {
+        from = new Date(today); from.setDate(from.getDate() - 7);
+        to = now;
+        prevFrom = new Date(today); prevFrom.setDate(prevFrom.getDate() - 14);
+        prevTo = new Date(today); prevTo.setDate(prevTo.getDate() - 7);
+      } else { // monthly
+        from = new Date(now.getFullYear(), now.getMonth(), 1);
+        to = now;
+        prevFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        prevTo = new Date(now.getFullYear(), now.getMonth(), 1);
+      }
+
+      return {
+        fromDate: from.toISOString(),
+        toDate: to.toISOString(),
+        prevFromDate: prevFrom.toISOString(),
+        prevToDate: prevTo.toISOString()
+      };
+    }
+
+    // ── Truck Picker ──────────────────────────────────────────────────────
+    function toggleTruckPicker() {
+      document.getElementById('truckPicker').classList.toggle('open');
+    }
+
+    function selectTruck(id, label, el) {
+      currentTruck = id;
+      document.getElementById('truckPickerLabel').textContent = label;
+      document.querySelectorAll('.truck-option').forEach(o => {
+        o.classList.remove('selected');
+        const check = o.querySelector('.check');
+        if (check) check.remove();
+      });
+      el.classList.add('selected');
+      if (!el.querySelector('.check')) {
+        const check = document.createElement('span');
+        check.className = 'check'; check.textContent = '✓';
+        el.appendChild(check);
+      }
+      document.getElementById('truckPicker').classList.remove('open');
+      renderDashboard();
+    }
+
+    document.addEventListener('click', e => {
+      if (!e.target.closest('.truck-picker')) {
+        document.getElementById('truckPicker').classList.remove('open');
+      }
+    });
+
+    // ── Data Loading ──────────────────────────────────────────────────────
+    async function loadDashboard() {
+      updateConnectionStatus('loading');
+      document.getElementById('lastUpdated').innerHTML = '<span class="spinner-sm"></span> Loading data...';
+
+      try {
+        const { fromDate, toDate, prevFromDate, prevToDate } = getDateRange(currentPeriod);
+
+        // Test connection + load static data in parallel
+        const [connRes, sessionRes, vehiclesRes, geofencesRes, locationsRes] = await Promise.all([
+          fetch(`${API}/api/connection-status`).then(r => r.json()).catch(() => ({ connected: false })),
+          fetch(`${API}/api/session-status`).then(r => r.json()).catch(() => null),
+          fetch(`${API}/api/fuel-delivery-vehicles`).then(r => r.json()).catch(() => ({ vehicles: [] })),
+          fetch(`${API}/api/geofences`).then(r => r.json()).catch(() => ({ geofences: [] })),
+          fetch(`${API}/api/vehicle-locations`).then(r => r.json()).catch(() => ({ locations: [] }))
+        ]);
+
+        if (!connRes.connected) throw new Error(connRes.error || 'Not connected to FleetComplete');
+
+        dashData.vehicles = vehiclesRes.vehicles || [];
+        dashData.geofences = geofencesRes.geofences || [];
+        dashData.locations = locationsRes.locations || [];
+
+        // Session status display
+        if (sessionRes) {
+          const days = sessionRes.daysRemaining ?? 0;
+          document.getElementById('sessionStatus').innerHTML =
+            `🔑 Session: ${days} days remaining · ${dashData.vehicles.length} fuel trucks tracked`;
+        }
+
+        updateConnectionStatus('connected');
+
+        // Zone events: current period + previous period for trend comparison
+        const [currentEvents, previousEvents] = await Promise.all([
+          fetch(`${API}/api/zone-events?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`)
+            .then(r => r.json()).catch(() => ({ events: [] })),
+          fetch(`${API}/api/zone-events?fromDate=${encodeURIComponent(prevFromDate)}&toDate=${encodeURIComponent(prevToDate)}`)
+            .then(r => r.json()).catch(() => ({ events: [] }))
+        ]);
+
+        dashData.zoneEvents = currentEvents.events || [];
+        dashData.previousEvents = previousEvents.events || [];
+
+        renderDashboard();
+
+        document.getElementById('lastUpdated').textContent =
+          `Last updated: ${new Date().toLocaleTimeString('en-AU')}`;
+
+      } catch (err) {
+        updateConnectionStatus('error');
+        document.getElementById('lastUpdated').textContent = `Error: ${err.message}`;
+        console.error('Dashboard load error:', err);
+      }
+    }
+
+    function updateConnectionStatus(state) {
+      const dot = document.getElementById('connDot');
+      const text = document.getElementById('connText');
+      if (state === 'connected') {
+        dot.className = 'status-dot'; text.textContent = 'Connected to FleetComplete';
+      } else if (state === 'loading') {
+        dot.className = 'status-dot warning'; text.textContent = 'Loading...';
+      } else {
+        dot.className = 'status-dot critical'; text.textContent = 'Connection error';
+      }
+    }
+
+    // ── Data Processing ──────────────────────────────────────────────────
+    // Look up zone name from zone ID
+    function getZoneName(zoneId) {
+      const zone = dashData.geofences.find(z => z.id === zoneId);
+      return zone ? zone.name : 'Unknown';
+    }
+
+    // Look up truck short name (RF01 / RF02) from device ID
+    function getTruckId(deviceId) {
+      const vehicle = dashData.vehicles.find(v => v.id === deviceId);
+      if (!vehicle) return null;
+      if (vehicle.name?.includes('RF01')) return 'RF01';
+      if (vehicle.name?.includes('RF02')) return 'RF02';
+      return null;
+    }
+
+    // Enrich zone events with readable zone names and truck IDs
+    function enrichEvents(events) {
+      return events.map(e => ({
+        ...e,
+        zoneName: getZoneName(e.zone?.id),
+        truckId: getTruckId(e.device?.id),
+        startTime: new Date(e.dateTime || e.activeFrom)
+      })).filter(e => e.truckId); // only RF01/RF02 events
+    }
+
+    // Filter by currently selected truck
+    function filterByTruck(events) {
+      if (currentTruck === 'ALL') return events;
+      return events.filter(e => e.truckId === currentTruck);
+    }
+
+    // Count events by zone role
+    function countByRole(events, role) {
+      return events.filter(e => ZONE_TYPES[e.zoneName]?.role === role).length;
+    }
+
+    // Calculate average turnaround: time between consecutive Gantry → Delivery events
+    function calcAvgTurnaround(events) {
+      const perTruck = {};
+      events.sort((a, b) => a.startTime - b.startTime);
+
+      events.forEach(e => {
+        if (!perTruck[e.truckId]) perTruck[e.truckId] = [];
+        perTruck[e.truckId].push(e);
+      });
+
+      const turnarounds = [];
+      Object.values(perTruck).forEach(truckEvents => {
+        for (let i = 0; i < truckEvents.length - 1; i++) {
+          const cur = truckEvents[i];
+          const next = truckEvents[i+1];
+          const isLoadToDeliver =
+            ZONE_TYPES[cur.zoneName]?.role === 'load' &&
+            ZONE_TYPES[next.zoneName]?.role === 'deliver';
+          if (isLoadToDeliver) {
+            const mins = (next.startTime - cur.startTime) / 1000 / 60;
+            if (mins > 0 && mins < 360) turnarounds.push(mins); // exclude > 6hr (unrealistic)
+          }
+        }
+      });
+
+      if (turnarounds.length === 0) return null;
+      const avg = turnarounds.reduce((s, m) => s + m, 0) / turnarounds.length;
+      return { avgMins: Math.round(avg), sampleSize: turnarounds.length };
+    }
+
+    // Trend: percent change between two values
+    function calcTrend(current, previous) {
+      if (previous === 0 && current === 0) return { direction: 'flat', pct: 0 };
+      if (previous === 0) return { direction: 'up', pct: 100 };
+      const pct = Math.round(((current - previous) / previous) * 100);
+      return {
+        direction: pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat'),
+        pct: Math.abs(pct)
+      };
+    }
+
+    // Determine current truck status from last event
+    function getTruckStatus(truckId) {
+      const truckEvents = dashData.zoneEvents
+        .filter(e => getTruckId(e.device?.id) === truckId)
+        .sort((a, b) => new Date(b.dateTime || b.activeFrom) - new Date(a.dateTime || a.activeFrom));
+
+      if (truckEvents.length === 0) return { badge: 'unknown', text: 'No recent activity', location: '—' };
+
+      const latest = truckEvents[0];
+      const zoneName = getZoneName(latest.zone?.id);
+      const role = ZONE_TYPES[zoneName]?.role;
+
+      const badgeMap = {
+        load:    { badge: 'loading',    text: 'Loading' },
+        deliver: { badge: 'delivering', text: 'Delivering' },
+        depot:   { badge: 'at-depot',   text: 'At depot' },
+        fuel:    { badge: 'loading',    text: 'Refuelling' },
+        other:   { badge: 'idle',       text: 'Stopped' }
+      };
+      const status = badgeMap[role] || { badge: 'moving', text: 'Moving' };
+
+      return {
+        badge: status.badge,
+        text: status.text,
+        location: zoneName,
+        lastSeen: new Date(latest.dateTime || latest.activeFrom).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })
+      };
+    }
+
+    // ── Rendering ──────────────────────────────────────────────────
+    function renderDashboard() {
+      const enrichedCurrent = enrichEvents(dashData.zoneEvents);
+      const enrichedPrev = enrichEvents(dashData.previousEvents);
+      const filtered = filterByTruck(enrichedCurrent);
+      const filteredPrev = filterByTruck(enrichedPrev);
+
+      // ── KPIs ──
+      const loads = countByRole(filtered, 'load');
+      const loadsPrev = countByRole(filteredPrev, 'load');
+      const deliveries = countByRole(filtered, 'deliver');
+      const deliveriesPrev = countByRole(filteredPrev, 'deliver');
+      const turn = calcAvgTurnaround(filtered);
+      const turnPrev = calcAvgTurnaround(filteredPrev);
+
+      // Loads KPI
+      document.getElementById('kpiLoads').textContent = loads;
+      document.getElementById('kpiLoadsSub').textContent = makeTruckSplit(filtered, 'load');
+      renderTrend('kpiLoadsTrend', calcTrend(loads, loadsPrev));
+
+      // Deliveries KPI
+      document.getElementById('kpiDeliveries').textContent = deliveries;
+      document.getElementById('kpiDeliveriesSub').textContent = makeDeliverySplit(filtered);
+      renderTrend('kpiDeliveriesTrend', calcTrend(deliveries, deliveriesPrev));
+
+      // Turnaround KPI
+      document.getElementById('kpiTurnaround').textContent = turn ? `${turn.avgMins}m` : '—';
+      document.getElementById('kpiTurnaroundSub').textContent = turn
+        ? `based on ${turn.sampleSize} load→deliver cycles`
+        : 'no complete cycles in period';
+      if (turn && turnPrev) {
+        const trend = calcTrend(turn.avgMins, turnPrev.avgMins);
+        // For turnaround, LOWER is better, so invert the direction visually
+        trend.direction = trend.direction === 'up' ? 'down' : (trend.direction === 'down' ? 'up' : 'flat');
+        renderTrend('kpiTurnaroundTrend', trend);
+      }
+
+      // Active trucks KPI
+      const activeTrucks = Object.keys(TRUCK_CONFIG).filter(id => {
+        const events = enrichedCurrent.filter(e => e.truckId === id);
+        if (events.length === 0) return false;
+        const latest = events.reduce((a, b) => a.startTime > b.startTime ? a : b);
+        const minsAgo = (new Date() - latest.startTime) / 1000 / 60;
+        return minsAgo < 120; // active if event in last 2 hours
+      }).length;
+      document.getElementById('kpiActive').textContent = `${activeTrucks}/2`;
+      document.getElementById('kpiActiveSub').textContent = activeTrucks === 0
+        ? 'No recent activity'
+        : `${activeTrucks} truck${activeTrucks !== 1 ? 's' : ''} moving in last 2 hours`;
+
+      // ── Alerts ──
+      renderAlerts(enrichedCurrent, activeTrucks);
+
+      // ── Truck Cards ──
+      renderTruckCards(enrichedCurrent);
+
+      // ── Charts ──
+      renderCharts(filtered);
+    }
+
+    function makeTruckSplit(events, role) {
+      const rf01 = events.filter(e => e.truckId === 'RF01' && ZONE_TYPES[e.zoneName]?.role === role).length;
+      const rf02 = events.filter(e => e.truckId === 'RF02' && ZONE_TYPES[e.zoneName]?.role === role).length;
+      return `RF01: ${rf01} · RF02: ${rf02}`;
+    }
+
+    function makeDeliverySplit(events) {
+      const gulkula = events.filter(e => e.zoneName === 'Gulkula Mine').length;
+      const mineFarm = events.filter(e => e.zoneName === 'Mine Fuel Farm').length;
+      return `Gulkula: ${gulkula} · Mine Farm: ${mineFarm}`;
+    }
+
+    function renderTrend(elementId, trend) {
+      const el = document.getElementById(elementId);
+      if (!trend || trend.direction === 'flat') {
+        el.className = 'kpi-trend flat';
+        el.textContent = '— no change';
+        return;
+      }
+      const arrow = trend.direction === 'up' ? '▲' : '▼';
+      const labelMap = {
+        daily: 'yesterday',
+        weekly: 'last week',
+        monthly: 'last month'
+      };
+      el.className = `kpi-trend ${trend.direction}`;
+      el.textContent = `${arrow} ${trend.pct}% vs ${labelMap[currentPeriod]}`;
+    }
+
+    function renderAlerts(events, activeTrucks) {
+      const bar = document.getElementById('alertsBar');
+      const alerts = [];
+
+      // Alert: no activity today during working hours
+      const now = new Date();
+      if (currentPeriod === 'daily' && now.getHours() >= 9 && now.getHours() <= 17 && activeTrucks === 0) {
+        alerts.push({
+          level: 'warning',
+          icon: '⚠️',
+          message: 'No fuel truck activity in the last 2 hours during working hours'
+        });
+      }
+
+      // Alert: truck has been at non-depot zone for > 30 mins
+      // (simplified check - would need duration data for full logic)
+
+      if (alerts.length === 0) {
+        bar.style.display = 'none';
+        return;
+      }
+
+      bar.style.display = 'block';
+      bar.innerHTML = alerts.map(a => `
+        <div class="alert-bar ${a.level}">
+          <span class="alert-icon">${a.icon}</span>
+          <span>${a.message}</span>
+        </div>`).join('');
+    }
+
+    function renderTruckCards(allEvents) {
+      const grid = document.getElementById('truckGrid');
+      grid.innerHTML = '';
+
+      const trucksToShow = currentTruck === 'ALL' ? ['RF01', 'RF02'] : [currentTruck];
+
+      trucksToShow.forEach(truckId => {
+        const cfg = TRUCK_CONFIG[truckId];
+        const status = getTruckStatus(truckId);
+        const truckEvents = allEvents.filter(e => e.truckId === truckId);
+        const loads = countByRole(truckEvents, 'load');
+        const deliveries = countByRole(truckEvents, 'deliver');
+
+        const card = document.createElement('div');
+        card.className = `truck-card ${cfg.class}`;
+        card.innerHTML = `
+          <div class="truck-card-header">
+            <span class="truck-emoji">${cfg.emoji}</span>
+            <div>
+              <div class="truck-name">${truckId} — ${cfg.name}</div>
+              <div class="truck-rego">Fuel delivery</div>
+            </div>
+            <span class="truck-badge ${status.badge}">${status.text}</span>
+          </div>
+          <div class="truck-card-body">
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Current location</span>
+              <span class="truck-stat-value">${status.location}</span>
+            </div>
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Last seen</span>
+              <span class="truck-stat-value">${status.lastSeen || '—'}</span>
+            </div>
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Loads in period</span>
+              <span class="truck-stat-value" style="color: var(--color-primary)">${loads}</span>
+            </div>
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Deliveries in period</span>
+              <span class="truck-stat-value" style="color: var(--color-positive)">${deliveries}</span>
+            </div>
+          </div>`;
+        grid.appendChild(card);
+      });
+
+      if (trucksToShow.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><div class="icon">🚛</div><div>No trucks match current filter</div></div>';
+      }
+    }
+
+    function renderCharts(events) {
+      // ── Chart 1: Loads by truck (bar) ──
+      const loadsByTruck = {
+        RF01: events.filter(e => e.truckId === 'RF01' && ZONE_TYPES[e.zoneName]?.role === 'load').length,
+        RF02: events.filter(e => e.truckId === 'RF02' && ZONE_TYPES[e.zoneName]?.role === 'load').length
+      };
+      if (loadsChart) loadsChart.destroy();
+      loadsChart = new Chart(document.getElementById('loadsChart'), {
+        type: 'bar',
+        data: {
+          labels: ['RF01 Kenworth', 'RF02 SAR Fuel'],
+          datasets: [{
+            data: [loadsByTruck.RF01, loadsByTruck.RF02],
+            backgroundColor: [TRUCK_CONFIG.RF01.color, TRUCK_CONFIG.RF02.color],
+            borderRadius: 4
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, datalabels: { display: true, color: '#fff', font: { weight: 'bold' }, anchor: 'end', align: 'start', offset: 4 } },
+          scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+        },
+        plugins: [ChartDataLabels]
+      });
+
+      // ── Chart 2: Delivery split (donut) ──
+      const gulkula = events.filter(e => e.zoneName === 'Gulkula Mine').length;
+      const mineFarm = events.filter(e => e.zoneName === 'Mine Fuel Farm').length;
+      const other = events.filter(e => ZONE_TYPES[e.zoneName]?.role === 'deliver' &&
+        e.zoneName !== 'Gulkula Mine' && e.zoneName !== 'Mine Fuel Farm').length;
+
+      if (deliveryChart) deliveryChart.destroy();
+      deliveryChart = new Chart(document.getElementById('deliveryChart'), {
+        type: 'doughnut',
+        data: {
+          labels: (gulkula + mineFarm + other) > 0
+            ? ['Gulkula Mine', 'Mine Fuel Farm', 'Other'].filter((_, i) => [gulkula, mineFarm, other][i] > 0)
+            : ['No deliveries'],
+          datasets: [{
+            data: (gulkula + mineFarm + other) > 0
+              ? [gulkula, mineFarm, other].filter(v => v > 0)
+              : [1],
+            backgroundColor: (gulkula + mineFarm + other) > 0
+              ? [ZONE_TYPES['Gulkula Mine'].color, ZONE_TYPES['Mine Fuel Farm'].color, '#95a5a6'].filter((_, i) => [gulkula, mineFarm, other][i] > 0)
+              : ['#E0E0E0'],
+            borderWidth: 2, borderColor: '#fff'
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: 'right', labels: { font: { size: 11 } } },
+            datalabels: {
+              color: '#fff',
+              font: { weight: 'bold', size: 11 },
+              formatter: (value, ctx) => {
+                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                const pct = Math.round(value / total * 100);
+                return pct >= 5 ? `${pct}%` : '';
+              }
+            }
+          }
+        },
+        plugins: [ChartDataLabels]
+      });
+
+      // ── Chart 3: Activity by hour (bar) ──
+      const hourly = new Array(24).fill(0);
+      events.forEach(e => {
+        const h = e.startTime.getHours();
+        hourly[h]++;
+      });
+
+      if (hourlyChart) hourlyChart.destroy();
+      hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+        type: 'bar',
+        data: {
+          labels: Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2,'0')}`),
+          datasets: [{
+            data: hourly,
+            backgroundColor: '#0078D4',
+            borderRadius: 2
+          }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            y: { beginAtZero: true, ticks: { stepSize: 1 } },
+            x: { ticks: { font: { size: 9 } } }
+          }
+        }
+      });
+    }
+
+    // ── Chat ──────────────────────────────────────────────────────
+    function toggleChat() {
+      const drawer = document.getElementById('chatDrawer');
+      const content = document.getElementById('mainContent');
+      drawer.classList.toggle('open');
+      content.classList.toggle('chat-open');
+    }
+
+    async function sendChat() {
+      const input = document.getElementById('chatInput');
+      const msg = input.value.trim();
+      if (!msg) return;
+
+      addChatMessage(msg, 'user');
+      chatHistory.push({ role: 'user', content: msg });
+      input.value = '';
+
+      document.getElementById('typingIndicator').style.display = 'flex';
+      document.getElementById('chatSend').disabled = true;
+
+      // Build context from current dashboard data
+      const enriched = enrichEvents(dashData.zoneEvents);
+      const filtered = filterByTruck(enriched);
+      const context = {
+        period: currentPeriod,
+        truck: currentTruck,
+        totals: {
+          loads: countByRole(filtered, 'load'),
+          deliveries: countByRole(filtered, 'deliver'),
+          loadsByTruck: {
+            RF01: enriched.filter(e => e.truckId === 'RF01' && ZONE_TYPES[e.zoneName]?.role === 'load').length,
+            RF02: enriched.filter(e => e.truckId === 'RF02' && ZONE_TYPES[e.zoneName]?.role === 'load').length
+          }
+        },
+        recentEvents: filtered.slice(-10).map(e => ({
+          truck: e.truckId,
+          zone: e.zoneName,
+          role: ZONE_TYPES[e.zoneName]?.role,
+          time: e.startTime.toISOString()
+        }))
+      };
+
+      try {
+        const response = await fetch(`${API}/api/ai-chat`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, context, history: chatHistory.slice(-6) })
+        });
+
+        document.getElementById('typingIndicator').style.display = 'none';
+        document.getElementById('chatSend').disabled = false;
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            addChatMessage(`AI chat is not yet wired up on the server. The dashboard data is ready — we just need to add an /api/ai-chat endpoint to server.js to enable chat. For now, the dashboard updates still work!`, 'assistant');
+            return;
+          }
+          throw new Error(`Server ${response.status}`);
+        }
+        const data = await response.json();
+        const reply = data.response || 'Sorry, no response received.';
+        addChatMessage(reply, 'assistant');
+        chatHistory.push({ role: 'assistant', content: reply });
+
+      } catch (err) {
+        document.getElementById('typingIndicator').style.display = 'none';
+        document.getElementById('chatSend').disabled = false;
+        addChatMessage(`Sorry, chat isn't available yet. Error: ${err.message}`, 'assistant');
+      }
+    }
+
+    function sendSuggestion(text) {
+      document.getElementById('chatInput').value = text;
+      sendChat();
+    }
+
+    function addChatMessage(text, type) {
+      const messages = document.getElementById('chatMessages');
+      const div = document.createElement('div');
+      div.className = `chat-message ${type}`;
+      const time = new Date().toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' });
+      const formatted = text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>').replace(/\n/g, '<br>');
+      div.innerHTML = `
+        <div class="message-content">${formatted}</div>
+        <div class="message-meta">
+          <span class="message-time">${time}</span>
+          ${type === 'assistant' ? '<button class="copy-btn" onclick="copyMsg(this)">📋</button>' : ''}
+        </div>`;
+      messages.appendChild(div);
+      messages.scrollTop = messages.scrollHeight;
+    }
+
+    function copyMsg(btn) {
+      const text = btn.closest('.chat-message').querySelector('.message-content').textContent;
+      navigator.clipboard.writeText(text).then(() => {
+        btn.textContent = '✓';
+        setTimeout(() => btn.textContent = '📋', 1500);
+      });
+    }
+
+    // ── Init ──────────────────────────────────────────────────────
+    // Apply saved period on load
+    document.querySelectorAll('.period-btn').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.period === currentPeriod);
+    });
+    const initLabels = {
+      daily:   'Today',
+      weekly:  'This Week (last 7 days)',
+      monthly: 'This Month'
+    };
+    document.getElementById('periodLabel').textContent = initLabels[currentPeriod];
+    const initKpiLabels = {
+      daily: 'Today', weekly: 'This Week', monthly: 'This Month'
+    };
+    document.getElementById('kpiLoadsLabel').textContent = `Loads ${initKpiLabels[currentPeriod]}`;
+    document.getElementById('kpiDeliveriesLabel').textContent = `Deliveries ${initKpiLabels[currentPeriod]}`;
+
+    loadDashboard();
+    setInterval(loadDashboard, 60000); // auto-refresh every minute
+  </script>
+</body>
+</html>
