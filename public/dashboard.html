@@ -268,6 +268,9 @@
     .truck-stat-row:last-child { border-bottom: none; }
     .truck-stat-label { color: var(--color-text-secondary); }
     .truck-stat-value { font-weight: 600; color: var(--color-text-primary); }
+    .truck-stat-sub {
+      color: var(--color-text-muted); font-weight: 400; font-size: 11px; margin-left: 4px;
+    }
 
     /* ── Alerts Bar ── */
     .alert-bar {
@@ -588,6 +591,14 @@
       'Quarry Depot':    { role: 'depot',   color: '#2980B9' }
     };
 
+    // Activity-by-hour color palette (matches stacked chart legend)
+    const ACTIVITY_COLORS = {
+      load:    '#27ae60', // green
+      deliver: '#8E44AD', // purple
+      refuel:  '#f39c12', // orange
+      wait:    '#95a5a6'  // grey — depot / other / outside zones
+    };
+
     // ── State ──────────────────────────────────────────────────────────────
     let currentPeriod = localStorage.getItem('racFuelPeriod') || 'daily';
     let currentFilter = 'ALL'; // ALL, FUEL, or a specific vehicle id (RF01, RF02, T409, ...)
@@ -656,8 +667,6 @@
     });
 
     // ── Point-in-polygon (ray casting) ─────────────────────────────────────
-    // Classic algorithm: shoot a horizontal ray from the point and count
-    // how many polygon edges it crosses. Odd = inside, even = outside.
     function pointInPolygon(point, polygonPoints) {
       if (!point || !polygonPoints || polygonPoints.length < 3) return false;
       const x = point.x, y = point.y;
@@ -693,7 +702,6 @@
                category: 'unknown', color: '#607D8B', fleetName: vehicle.name };
     }
 
-    // Which vehicle IDs match the current filter?
     function vehicleIdsInFilter() {
       if (currentFilter === 'ALL') return VEHICLE_CATALOG.map(v => v.id);
       if (currentFilter === 'FUEL') return FUEL_IDS;
@@ -701,8 +709,6 @@
     }
 
     // ── Trip enrichment ────────────────────────────────────────────────────
-    // Attach computed fields we need for rendering, and filter to vehicles
-    // we actually recognize (the 7 in VEHICLE_CATALOG).
     function enrichTrips(trips) {
       return (trips || []).map(t => {
         const spec = getVehicleSpec(t.device?.id);
@@ -713,8 +719,9 @@
           startTime: new Date(t.start),
           stopTime: new Date(t.stop),
           stopZone: findZoneForPoint(t.stopPoint),
-          // drivingDuration comes as "HH:MM:SS" string — convert to minutes
-          drivingMins: durationToMinutes(t.drivingDuration)
+          // HH:MM:SS strings → minutes
+          drivingMins: durationToMinutes(t.drivingDuration),
+          idlingMins: durationToMinutes(t.idlingDuration)
         };
       }).filter(t => t.vehicleId);
     }
@@ -725,13 +732,23 @@
       if (parts.length < 2) return 0;
       const h = parseInt(parts[0]) || 0;
       const m = parseInt(parts[1]) || 0;
-      const s = parseInt(parts[2]) || 0;
+      const s = parseFloat(parts[2]) || 0;
       return h * 60 + m + s / 60;
     }
 
     function filterTripsByCurrentSelection(trips) {
       const allowedIds = vehicleIdsInFilter();
       return trips.filter(t => allowedIds.includes(t.vehicleId));
+    }
+
+    // Classify a trip's activity based on where it STOPPED (destination)
+    // load = stopped at Rio Gantry; deliver = Mine Farm/Gulkula; refuel = BP; wait = anywhere else
+    function activityOfTrip(t) {
+      const role = ZONE_TYPES[t.stopZone]?.role;
+      if (role === 'load') return 'load';
+      if (role === 'deliver') return 'deliver';
+      if (role === 'fuel') return 'refuel';
+      return 'wait'; // depot, other, or outside any named zone
     }
 
     // ── Data Loading ──────────────────────────────────────────────────────
@@ -764,7 +781,6 @@
         }
         updateConnectionStatus('connected');
 
-        // Trips: current period + previous period for trend comparison
         const [currentRes, previousRes] = await Promise.all([
           fetch(`${API}/api/trips?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`)
             .then(r => r.json()).catch(() => ({ trips: [] })),
@@ -799,12 +815,10 @@
     }
 
     // ── KPI Computation ──────────────────────────────────────────────────
-    // Fuel-specific KPIs (only for fuel views)
     function countByRole(trips, role) {
       return trips.filter(t => ZONE_TYPES[t.stopZone]?.role === role).length;
     }
 
-    // Classic load→deliver turnaround
     function calcAvgTurnaround(trips) {
       const perTruck = {};
       const sorted = [...trips].sort((a, b) => a.startTime - b.startTime);
@@ -828,12 +842,17 @@
                sampleSize: turnarounds.length };
     }
 
-    // Fleet-wide KPIs (for all vehicles view)
     function totalDistance(trips) {
       return trips.reduce((sum, t) => sum + (t.distance || 0), 0);
     }
     function totalDrivingMins(trips) {
       return trips.reduce((sum, t) => sum + (t.drivingMins || 0), 0);
+    }
+    function totalIdlingMins(trips) {
+      return trips.reduce((sum, t) => sum + (t.idlingMins || 0), 0);
+    }
+    function totalEngineMins(trips) {
+      return totalDrivingMins(trips) + totalIdlingMins(trips);
     }
 
     function calcTrend(current, previous) {
@@ -895,7 +914,6 @@
       const filtered = filterTripsByCurrentSelection(enrichedCurrent);
       const filteredPrev = filterTripsByCurrentSelection(enrichedPrev);
 
-      // Decide whether to show fuel-KPIs or fleet-KPIs based on current filter
       const filterIds = vehicleIdsInFilter();
       const fuelFocus = currentFilter === 'FUEL' || FUEL_IDS.includes(currentFilter);
 
@@ -941,8 +959,8 @@
       const totalTripsPrev = prevTrips.length;
       const distance = totalDistance(trips);
       const distancePrev = totalDistance(prevTrips);
-      const hours = totalDrivingMins(trips) / 60;
-      const hoursPrev = totalDrivingMins(prevTrips) / 60;
+      const engineHrs = totalEngineMins(trips) / 60;
+      const engineHrsPrev = totalEngineMins(prevTrips) / 60;
 
       document.getElementById('kpi1Label').textContent = 'Total Trips';
       document.getElementById('kpi1Value').textContent = totalTrips;
@@ -954,10 +972,11 @@
       document.getElementById('kpi2Sub').textContent = distance > 0 ? `Across ${uniqueVehicles(trips)} vehicles` : '—';
       renderTrend('kpi2Trend', calcTrend(Math.round(distance), Math.round(distancePrev)));
 
-      document.getElementById('kpi3Label').textContent = 'Driving Hours';
-      document.getElementById('kpi3Value').textContent = hours.toFixed(1);
-      document.getElementById('kpi3Sub').textContent = 'Total engine-on time';
-      renderTrend('kpi3Trend', calcTrend(Math.round(hours * 10), Math.round(hoursPrev * 10)));
+      document.getElementById('kpi3Label').textContent = 'Engine Hours';
+      document.getElementById('kpi3Value').textContent = engineHrs.toFixed(1);
+      document.getElementById('kpi3Sub').textContent =
+        `${(totalDrivingMins(trips)/60).toFixed(1)}h driving · ${(totalIdlingMins(trips)/60).toFixed(1)}h idle`;
+      renderTrend('kpi3Trend', calcTrend(Math.round(engineHrs * 10), Math.round(engineHrsPrev * 10)));
     }
 
     function renderActiveTrucksKPI(enrichedCurrent, filterIds) {
@@ -1002,7 +1021,6 @@
       const bar = document.getElementById('alertsBar');
       const alerts = [];
 
-      // Fuel-focused alert: no activity during working hours today
       if (currentPeriod === 'daily') {
         const now = new Date();
         const workingHours = now.getHours() >= 9 && now.getHours() <= 17;
@@ -1021,7 +1039,6 @@
         }
       }
 
-      // RF02 specifically idle?
       if (filterIds.includes('RF02')) {
         const rf02Trips = trips.filter(t => t.vehicleId === 'RF02');
         if (rf02Trips.length === 0) {
@@ -1057,7 +1074,11 @@
         const loads = vTrips.filter(t => ZONE_TYPES[t.stopZone]?.role === 'load').length;
         const deliveries = vTrips.filter(t => ZONE_TYPES[t.stopZone]?.role === 'deliver').length;
         const distance = vTrips.reduce((s, t) => s + (t.distance || 0), 0);
-        const hours = vTrips.reduce((s, t) => s + (t.drivingMins || 0), 0) / 60;
+        const drivingMins = vTrips.reduce((s, t) => s + (t.drivingMins || 0), 0);
+        const idlingMins = vTrips.reduce((s, t) => s + (t.idlingMins || 0), 0);
+        const drivingHrs = drivingMins / 60;
+        const idlingHrs = idlingMins / 60;
+        const engineHrs = drivingHrs + idlingHrs;
 
         const isFuel = spec.category === 'fuel';
         const card = document.createElement('div');
@@ -1089,6 +1110,13 @@
               <span class="truck-stat-label">Distance</span>
               <span class="truck-stat-value">${distance.toFixed(1)} km</span>
             </div>
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Engine hours</span>
+              <span class="truck-stat-value">
+                ${engineHrs.toFixed(1)}h
+                <span class="truck-stat-sub">(${drivingHrs.toFixed(1)}h drive · ${idlingHrs.toFixed(1)}h idle)</span>
+              </span>
+            </div>
             ${isFuel ? `
             <div class="truck-stat-row">
               <span class="truck-stat-label">Loads / Deliveries</span>
@@ -1098,12 +1126,7 @@
                 <span style="color: var(--color-positive)">${deliveries}</span>
               </span>
             </div>
-            ` : `
-            <div class="truck-stat-row">
-              <span class="truck-stat-label">Driving hours</span>
-              <span class="truck-stat-value">${hours.toFixed(1)}h</span>
-            </div>
-            `}
+            ` : ''}
           </div>`;
         grid.appendChild(card);
       });
@@ -1129,7 +1152,6 @@
 
       let bar1Data = tripCounts;
       if (fuelFocus) {
-        // Recompute as loads (Gantry visits) specifically
         bar1Data = filterIds.map(id =>
           filtered.filter(t => t.vehicleId === id && ZONE_TYPES[t.stopZone]?.role === 'load').length
         );
@@ -1199,7 +1221,6 @@
           plugins: [ChartDataLabels]
         });
       } else {
-        // Distance by vehicle (horizontal bars)
         const distances = filterIds.map(id =>
           filtered.filter(t => t.vehicleId === id).reduce((s, t) => s + (t.distance || 0), 0)
         );
@@ -1228,28 +1249,73 @@
         });
       }
 
-      // Chart 3 — Activity by hour (always)
-      const hourly = new Array(24).fill(0);
-      filtered.forEach(t => { const h = t.startTime.getHours(); hourly[h]++; });
+      // Chart 3 — Activity by hour (stacked in fuel focus, simple in fleet view)
       document.getElementById('chart3Title').textContent = 'Activity by Hour';
-      document.getElementById('chart3Sub').textContent = 'Trip starts by hour of day';
-
       if (kpi3Chart) kpi3Chart.destroy();
-      kpi3Chart = new Chart(document.getElementById('hourlyChart'), {
-        type: 'bar',
-        data: {
-          labels: Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}`),
-          datasets: [{ data: hourly, backgroundColor: '#0078D4', borderRadius: 2 }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false } },
-          scales: {
-            y: { beginAtZero: true, ticks: { stepSize: 1 } },
-            x: { ticks: { font: { size: 9 } } }
+
+      if (fuelFocus) {
+        // Stacked: classify each trip by its stop destination
+        document.getElementById('chart3Sub').textContent = 'Trip starts by hour, coloured by destination';
+        const hrLabels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}`);
+        const byActivity = {
+          load:    new Array(24).fill(0),
+          deliver: new Array(24).fill(0),
+          refuel:  new Array(24).fill(0),
+          wait:    new Array(24).fill(0)
+        };
+        filtered.forEach(t => {
+          const h = t.startTime.getHours();
+          byActivity[activityOfTrip(t)][h]++;
+        });
+
+        kpi3Chart = new Chart(document.getElementById('hourlyChart'), {
+          type: 'bar',
+          data: {
+            labels: hrLabels,
+            datasets: [
+              { label: 'Load',    data: byActivity.load,    backgroundColor: ACTIVITY_COLORS.load,    borderRadius: 2 },
+              { label: 'Deliver', data: byActivity.deliver, backgroundColor: ACTIVITY_COLORS.deliver, borderRadius: 2 },
+              { label: 'Refuel',  data: byActivity.refuel,  backgroundColor: ACTIVITY_COLORS.refuel,  borderRadius: 2 },
+              { label: 'Wait',    data: byActivity.wait,    backgroundColor: ACTIVITY_COLORS.wait,    borderRadius: 2 }
+            ]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: {
+                position: 'bottom',
+                labels: { font: { size: 10 }, boxWidth: 10, padding: 8, usePointStyle: true }
+              },
+              tooltip: { mode: 'index', intersect: false }
+            },
+            scales: {
+              x: { stacked: true, ticks: { font: { size: 9 } } },
+              y: { stacked: true, beginAtZero: true, ticks: { stepSize: 1 } }
+            }
           }
-        }
-      });
+        });
+      } else {
+        // Fleet view: simple single-color hourly count
+        document.getElementById('chart3Sub').textContent = 'Trip starts by hour of day';
+        const hourly = new Array(24).fill(0);
+        filtered.forEach(t => { const h = t.startTime.getHours(); hourly[h]++; });
+
+        kpi3Chart = new Chart(document.getElementById('hourlyChart'), {
+          type: 'bar',
+          data: {
+            labels: Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}`),
+            datasets: [{ data: hourly, backgroundColor: '#0078D4', borderRadius: 2 }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: { legend: { display: false } },
+            scales: {
+              y: { beginAtZero: true, ticks: { stepSize: 1 } },
+              x: { ticks: { font: { size: 9 } } }
+            }
+          }
+        });
+      }
     }
 
     // ── Chat ──────────────────────────────────────────────────────
@@ -1278,7 +1344,9 @@
           loads: countByRole(filtered, 'load'),
           deliveries: countByRole(filtered, 'deliver'),
           distance: totalDistance(filtered).toFixed(1),
-          hours: (totalDrivingMins(filtered) / 60).toFixed(1)
+          drivingHours: (totalDrivingMins(filtered) / 60).toFixed(1),
+          idlingHours: (totalIdlingMins(filtered) / 60).toFixed(1),
+          engineHours: (totalEngineMins(filtered) / 60).toFixed(1)
         },
         recentTrips: filtered.slice(-10).map(t => ({
           vehicle: t.vehicleId, stopZone: t.stopZone,
