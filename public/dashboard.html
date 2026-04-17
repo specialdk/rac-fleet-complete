@@ -65,7 +65,39 @@
 
     .header-right { display: flex; align-items: center; gap: 10px; }
 
-    /* Truck picker */
+    /* ── Period Toggle (now in header, dark theme) ── */
+    .period-toggle {
+      display: inline-flex;
+      background: rgba(255,255,255,0.08);
+      border-radius: 6px;
+      padding: 2px;
+      gap: 2px;
+    }
+    .period-btn {
+      padding: 5px 14px;
+      border: none;
+      background: transparent;
+      color: rgba(255,255,255,0.65);
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      border-radius: 4px;
+      font-family: inherit;
+      transition: all 0.15s;
+    }
+    .period-btn:hover {
+      background: rgba(255,255,255,0.08);
+      color: white;
+    }
+    .period-btn.active {
+      background: var(--color-primary);
+      color: white;
+    }
+    .period-btn.active:hover {
+      background: var(--color-primary-dark);
+    }
+
+    /* ── Truck / Vehicle Picker ── */
     .truck-picker { position: relative; }
     .truck-picker-btn {
       padding: 6px 14px; border: 1px solid rgba(255,255,255,0.3);
@@ -78,7 +110,7 @@
     .truck-picker.open .truck-picker-btn .arrow { transform: rotate(180deg); }
 
     .truck-picker-dropdown {
-      position: absolute; top: calc(100% + 4px); left: 0; min-width: 240px;
+      position: absolute; top: calc(100% + 4px); right: 0; min-width: 260px;
       background: var(--bg-header); border: 1px solid rgba(255,255,255,0.2);
       border-radius: 8px; box-shadow: 0 8px 24px rgba(0,0,0,0.3);
       z-index: 200; display: none; overflow: hidden;
@@ -88,12 +120,51 @@
     .truck-option {
       display: flex; align-items: center; gap: 10px;
       padding: 10px 16px; cursor: pointer; color: rgba(255,255,255,0.85);
-      font-size: 13px; transition: background 0.15s;
+      font-size: 13px; transition: background 0.15s; user-select: none;
     }
-    .truck-option:hover { background: rgba(255,255,255,0.1); }
-    .truck-option.selected { color: white; background: rgba(0,120,212,0.3); }
-    .truck-option .check { margin-left: auto; color: var(--color-primary); font-size: 14px; }
-    .truck-option-divider { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
+    .truck-option:hover { background: rgba(255,255,255,0.08); }
+
+    /* Presets (All / Fuel Only) — distinct styling, button-like */
+    .truck-option.preset {
+      background: rgba(0,120,212,0.12);
+      font-weight: 600;
+      color: rgba(255,255,255,0.95);
+    }
+    .truck-option.preset:hover { background: rgba(0,120,212,0.22); }
+    .truck-option.preset.active { background: rgba(0,120,212,0.35); }
+
+    /* Individual vehicle rows — checkbox-style toggle */
+    .truck-option.individual.selected {
+      color: white;
+      background: rgba(0,120,212,0.08);
+    }
+    .truck-option.individual.selected:hover {
+      background: rgba(0,120,212,0.15);
+    }
+
+    .check-indicator {
+      width: 14px; height: 14px;
+      border: 1.5px solid rgba(255,255,255,0.35);
+      border-radius: 3px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: all 0.15s;
+    }
+    .truck-option.individual.selected .check-indicator {
+      background: var(--color-primary);
+      border-color: var(--color-primary);
+    }
+    .truck-option.individual.selected .check-indicator::before {
+      content: '✓';
+      color: white;
+      font-size: 11px;
+      font-weight: bold;
+      line-height: 1;
+    }
+
+    .truck-option-divider { height: 1px; background: rgba(255,255,255,0.12); margin: 4px 0; }
 
     .btn-refresh {
       padding: 6px 16px; background: var(--color-primary); color: white;
@@ -128,51 +199,6 @@
     }
     .content.chat-open { margin-right: var(--drawer-width); }
 
-    /* ── Period Toggle (segmented control) ── */
-    .period-toggle-wrapper {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      margin-bottom: 20px;
-    }
-    .period-toggle {
-      display: inline-flex;
-      background: var(--bg-card);
-      border-radius: 8px;
-      padding: 4px;
-      box-shadow: var(--shadow-card);
-      gap: 2px;
-    }
-    .period-btn {
-      padding: 8px 20px;
-      border: none;
-      background: transparent;
-      color: var(--color-text-secondary);
-      font-size: 13px;
-      font-weight: 600;
-      cursor: pointer;
-      border-radius: 6px;
-      font-family: inherit;
-      transition: all 0.2s;
-      min-width: 100px;
-    }
-    .period-btn:hover {
-      background: #F3F2F1;
-      color: var(--color-text-primary);
-    }
-    .period-btn.active {
-      background: var(--color-primary);
-      color: white;
-    }
-    .period-btn.active:hover {
-      background: var(--color-primary-dark);
-    }
-    .period-label {
-      font-size: 13px;
-      color: var(--color-text-secondary);
-      font-weight: 500;
-    }
-
     /* ── Refresh Bar ── */
     .refresh-bar {
       display: flex; align-items: center; justify-content: space-between;
@@ -183,7 +209,7 @@
     /* ── KPI Row ── */
     .kpi-row {
       display: grid; grid-template-columns: repeat(4, 1fr);
-      gap: 16px; margin-bottom: 24px;
+      gap: 16px; margin-bottom: 20px;
     }
 
     .kpi-card {
@@ -214,25 +240,18 @@
     .kpi-trend.down { color: var(--color-negative); }
     .kpi-trend.flat { color: var(--color-text-muted); }
 
-    /* ── Section ── */
-    .section-header {
-      display: flex; justify-content: space-between; align-items: center;
-      margin-bottom: 16px;
-    }
-    .section-title { font-size: 16px; font-weight: 600; color: var(--color-text-primary); }
-    .section-sub { font-size: 12px; color: var(--color-text-muted); margin-top: 2px; }
-
     /* ── Truck Cards Grid ── */
     .truck-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
-      gap: 16px; margin-bottom: 24px;
+      gap: 16px; margin-bottom: 20px;
+      /* grid-template-columns set dynamically via JS based on selected count */
     }
 
     .truck-card {
       background: var(--bg-card); border-radius: 8px;
       box-shadow: var(--shadow-card); overflow: hidden;
       transition: box-shadow 0.2s;
+      min-width: 0; /* allow grid cells to shrink below content width */
     }
     .truck-card:hover { box-shadow: var(--shadow-card-hover); }
 
@@ -244,11 +263,14 @@
     .truck-card.RF01 .truck-card-header { border-top-color: #C0392B; }
     .truck-card.RF02 .truck-card-header { border-top-color: #2980B9; }
     .truck-emoji { font-size: 22px; }
-    .truck-name { font-size: 15px; font-weight: 600; color: var(--color-text-primary); }
+    .truck-name {
+      font-size: 14px; font-weight: 600; color: var(--color-text-primary);
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    }
     .truck-rego { font-size: 11px; color: var(--color-text-muted); margin-top: 1px; }
     .truck-badge {
       margin-left: auto; padding: 3px 10px; border-radius: 12px;
-      font-size: 11px; font-weight: 600;
+      font-size: 11px; font-weight: 600; flex-shrink: 0;
     }
     .truck-badge.moving { background: #E6F4EA; color: var(--color-positive); }
     .truck-badge.loading { background: #FFF4CE; color: #7A4F00; }
@@ -261,15 +283,20 @@
 
     .truck-stat-row {
       display: flex; justify-content: space-between;
-      align-items: center; padding: 6px 0;
+      align-items: center; padding: 6px 0; gap: 8px;
       border-bottom: 1px solid var(--color-border);
       font-size: 13px;
     }
     .truck-stat-row:last-child { border-bottom: none; }
-    .truck-stat-label { color: var(--color-text-secondary); }
-    .truck-stat-value { font-weight: 600; color: var(--color-text-primary); }
+    .truck-stat-label { color: var(--color-text-secondary); flex-shrink: 0; }
+    .truck-stat-value {
+      font-weight: 600; color: var(--color-text-primary);
+      text-align: right; min-width: 0;
+      overflow: hidden; text-overflow: ellipsis;
+    }
     .truck-stat-sub {
-      color: var(--color-text-muted); font-weight: 400; font-size: 11px; margin-left: 4px;
+      color: var(--color-text-muted); font-weight: 400; font-size: 11px;
+      display: block; margin-top: 2px;
     }
 
     /* ── Alerts Bar ── */
@@ -282,7 +309,6 @@
     .alert-bar.warning  { background: #FEF9C3; border: 1px solid #FDE047; color: #854D0E; }
     .alert-bar.info     { background: #EFF6FF; border: 1px solid #BFDBFE; color: #1D4ED8; }
     .alert-bar .alert-icon { font-size: 16px; flex-shrink: 0; }
-    .alert-bar .alert-count { font-size: 20px; font-weight: 700; margin-right: 4px; }
 
     /* ── Loading spinner ── */
     .spinner-sm {
@@ -294,7 +320,7 @@
     @keyframes spin { to { transform: rotate(360deg); } }
 
     /* ── Chart Section ── */
-    .chart-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+    .chart-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 16px; }
     .chart-card {
       background: var(--bg-card); border-radius: 8px;
       padding: 20px; box-shadow: var(--shadow-card);
@@ -392,6 +418,7 @@
     /* ── Empty state ── */
     .empty-state {
       text-align: center; padding: 40px; color: var(--color-text-muted);
+      grid-column: 1 / -1;
     }
     .empty-state .icon { font-size: 36px; margin-bottom: 10px; }
   </style>
@@ -408,28 +435,50 @@
       </div>
     </div>
     <div class="header-right">
-      <!-- Vehicle Picker (All / Fuel Only / Individual vehicles) -->
+      <!-- Period Toggle (now in header) -->
+      <div class="period-toggle">
+        <button class="period-btn active" data-period="daily" onclick="selectPeriod('daily')">Daily</button>
+        <button class="period-btn" data-period="weekly" onclick="selectPeriod('weekly')">Weekly</button>
+        <button class="period-btn" data-period="monthly" onclick="selectPeriod('monthly')">Monthly</button>
+      </div>
+
+      <!-- Vehicle Picker (MULTI-SELECT with toggle checkboxes) -->
       <div class="truck-picker" id="truckPicker">
         <button class="truck-picker-btn" onclick="toggleTruckPicker()">
           <span id="truckPickerLabel">🚛 All Vehicles</span>
           <span class="arrow">▼</span>
         </button>
         <div class="truck-picker-dropdown" id="truckDropdown">
-          <div class="truck-option selected" data-id="ALL" onclick="selectTruck('ALL','🚛 All Vehicles',this)">
-            🚛 All Vehicles <span class="check">✓</span>
+          <!-- Presets: click-and-close quick actions -->
+          <div class="truck-option preset" data-preset="ALL" onclick="selectAllVehicles()">
+            🚛 All Vehicles
           </div>
-          <div class="truck-option" data-id="FUEL" onclick="selectTruck('FUEL','⛽ Fuel Trucks Only',this)">
+          <div class="truck-option preset" data-preset="FUEL" onclick="selectFuelOnly()">
             ⛽ Fuel Trucks Only
           </div>
           <div class="truck-option-divider"></div>
-          <div class="truck-option" data-id="RF01" onclick="selectTruck('RF01','🔴 RF01 Kenworth T609',this)">🔴 RF01 Kenworth T609</div>
-          <div class="truck-option" data-id="RF02" onclick="selectTruck('RF02','🔵 RF02 SAR Fuel T408',this)">🔵 RF02 SAR Fuel T408</div>
-          <div class="truck-option-divider"></div>
-          <div class="truck-option" data-id="T409" onclick="selectTruck('T409','🟢 T409 SAR PM',this)">🟢 T409 SAR PM</div>
-          <div class="truck-option" data-id="TIPPER" onclick="selectTruck('TIPPER','🟡 UD HR Tipper',this)">🟡 UD HR Tipper</div>
-          <div class="truck-option" data-id="UDPM" onclick="selectTruck('UDPM','🟣 UD Prime Mover',this)">🟣 UD Prime Mover</div>
-          <div class="truck-option" data-id="BOBCAT" onclick="selectTruck('BOBCAT','🟠 Bobcat TH',this)">🟠 Bobcat TH</div>
-          <div class="truck-option" data-id="SKID" onclick="selectTruck('SKID','🟤 Cat Skid Steer',this)">🟤 Cat Skid Steer</div>
+          <!-- Individual toggles: click keeps dropdown open -->
+          <div class="truck-option individual" data-id="RF01" onclick="event.stopPropagation(); toggleVehicle('RF01')">
+            <span class="check-indicator"></span>🔴 RF01 Kenworth T609
+          </div>
+          <div class="truck-option individual" data-id="RF02" onclick="event.stopPropagation(); toggleVehicle('RF02')">
+            <span class="check-indicator"></span>🔵 RF02 SAR Fuel T408
+          </div>
+          <div class="truck-option individual" data-id="T409" onclick="event.stopPropagation(); toggleVehicle('T409')">
+            <span class="check-indicator"></span>🟢 T409 SAR PM
+          </div>
+          <div class="truck-option individual" data-id="TIPPER" onclick="event.stopPropagation(); toggleVehicle('TIPPER')">
+            <span class="check-indicator"></span>🟡 UD HR Tipper
+          </div>
+          <div class="truck-option individual" data-id="UDPM" onclick="event.stopPropagation(); toggleVehicle('UDPM')">
+            <span class="check-indicator"></span>🟣 UD Prime Mover
+          </div>
+          <div class="truck-option individual" data-id="BOBCAT" onclick="event.stopPropagation(); toggleVehicle('BOBCAT')">
+            <span class="check-indicator"></span>🟠 Bobcat TH
+          </div>
+          <div class="truck-option individual" data-id="SKID" onclick="event.stopPropagation(); toggleVehicle('SKID')">
+            <span class="check-indicator"></span>🟤 Cat Skid Steer
+          </div>
         </div>
       </div>
 
@@ -442,16 +491,6 @@
   <!-- Main -->
   <div class="main">
     <div class="content" id="mainContent">
-
-      <!-- Period Toggle -->
-      <div class="period-toggle-wrapper">
-        <div class="period-toggle">
-          <button class="period-btn active" data-period="daily" onclick="selectPeriod('daily')">📅 Daily</button>
-          <button class="period-btn" data-period="weekly" onclick="selectPeriod('weekly')">📆 Weekly</button>
-          <button class="period-btn" data-period="monthly" onclick="selectPeriod('monthly')">🗓️ Monthly</button>
-        </div>
-        <div class="period-label" id="periodLabel">Today</div>
-      </div>
 
       <!-- Refresh bar -->
       <div class="refresh-bar">
@@ -489,14 +528,7 @@
       <!-- Alerts Bar -->
       <div id="alertsBar" style="display:none; margin-bottom:16px;"></div>
 
-      <!-- Truck Cards -->
-      <div class="section-header">
-        <div>
-          <div class="section-title" id="sectionTitle">Truck Status</div>
-          <div class="section-sub" id="sectionSub">Real-time activity from FleetComplete</div>
-        </div>
-      </div>
-
+      <!-- Vehicle cards (dynamic columns based on selected count) -->
       <div class="truck-grid" id="truckGrid">
         <!-- Populated by JS -->
       </div>
@@ -568,8 +600,6 @@
     Chart.defaults.plugins.datalabels = { display: false };
 
     // ── Vehicle Catalog ────────────────────────────────────────────────────
-    // Each vehicle in the fleet. Matching is done by substring against
-    // FleetComplete's `name` field. `category` drives what KPIs show.
     const VEHICLE_CATALOG = [
       { id: 'RF01',   matches: ['RF01', 'T609'],         displayName: 'RF01 Kenworth T609',   emoji: '🔴', category: 'fuel',      color: '#C0392B' },
       { id: 'RF02',   matches: ['RF02', 'T408'],         displayName: 'RF02 SAR Fuel T408',   emoji: '🔵', category: 'fuel',      color: '#2980B9' },
@@ -580,8 +610,8 @@
       { id: 'SKID',   matches: ['Cat Skid', 'Skid steer'],displayName: 'Cat Skid Steer 262C', emoji: '🟤', category: 'equipment', color: '#795548' }
     ];
     const FUEL_IDS = ['RF01', 'RF02'];
+    const ALL_VEHICLE_IDS = VEHICLE_CATALOG.map(v => v.id);
 
-    // Zone role classification drives KPI counting
     const ZONE_TYPES = {
       'Rio Fuel Gantry': { role: 'load',    color: '#27ae60' },
       'BP Nhulunbuy':    { role: 'fuel',    color: '#f39c12' },
@@ -591,20 +621,26 @@
       'Quarry Depot':    { role: 'depot',   color: '#2980B9' }
     };
 
-    // Activity-by-hour color palette (matches stacked chart legend)
     const ACTIVITY_COLORS = {
-      load:    '#27ae60', // green
-      deliver: '#8E44AD', // purple
-      refuel:  '#f39c12', // orange
-      wait:    '#95a5a6'  // grey — depot / other / outside zones
+      load:    '#27ae60',
+      deliver: '#8E44AD',
+      refuel:  '#f39c12',
+      wait:    '#95a5a6'
     };
 
     // ── State ──────────────────────────────────────────────────────────────
     let currentPeriod = localStorage.getItem('racFuelPeriod') || 'daily';
-    let currentFilter = 'ALL'; // ALL, FUEL, or a specific vehicle id (RF01, RF02, T409, ...)
+    // Multi-select: Set of vehicle IDs currently checked. Default = all 7.
+    let currentSelection = new Set(
+      JSON.parse(localStorage.getItem('racFuelSelection') || 'null') || ALL_VEHICLE_IDS
+    );
     let dashData = { vehicles: [], geofences: [], trips: [], previousTrips: [], locations: [] };
     let chatHistory = [];
     let kpi1Chart = null, kpi2Chart = null, kpi3Chart = null;
+
+    function persistSelection() {
+      localStorage.setItem('racFuelSelection', JSON.stringify([...currentSelection]));
+    }
 
     // ── Period Management ──────────────────────────────────────────────────
     function selectPeriod(period) {
@@ -613,8 +649,6 @@
       document.querySelectorAll('.period-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.period === period);
       });
-      document.getElementById('periodLabel').textContent =
-        ({ daily: 'Today', weekly: 'This Week (last 7 days)', monthly: 'This Month' })[period];
       loadDashboard();
     }
 
@@ -639,25 +673,79 @@
                prevFromDate: prevFrom.toISOString(), prevToDate: prevTo.toISOString() };
     }
 
-    // ── Truck Picker ──────────────────────────────────────────────────────
+    // ── Vehicle picker (multi-select) ────────────────────────────────────
     function toggleTruckPicker() {
       document.getElementById('truckPicker').classList.toggle('open');
     }
 
-    function selectTruck(id, label, el) {
-      currentFilter = id;
-      document.getElementById('truckPickerLabel').textContent = label;
-      document.querySelectorAll('.truck-option').forEach(o => {
-        o.classList.remove('selected');
-        const c = o.querySelector('.check'); if (c) c.remove();
-      });
-      el.classList.add('selected');
-      if (!el.querySelector('.check')) {
-        const c = document.createElement('span'); c.className = 'check'; c.textContent = '✓';
-        el.appendChild(c);
+    function toggleVehicle(vehicleId) {
+      if (currentSelection.has(vehicleId)) {
+        currentSelection.delete(vehicleId);
+      } else {
+        currentSelection.add(vehicleId);
       }
+      persistSelection();
+      updateSelectorUI();
+      renderDashboard();
+      // NOTE: dropdown stays open intentionally for multi-toggle
+    }
+
+    function selectAllVehicles() {
+      currentSelection = new Set(ALL_VEHICLE_IDS);
+      persistSelection();
+      updateSelectorUI();
       document.getElementById('truckPicker').classList.remove('open');
       renderDashboard();
+    }
+
+    function selectFuelOnly() {
+      currentSelection = new Set(FUEL_IDS);
+      persistSelection();
+      updateSelectorUI();
+      document.getElementById('truckPicker').classList.remove('open');
+      renderDashboard();
+    }
+
+    function isFuelOnlyPreset() {
+      return currentSelection.size === FUEL_IDS.length &&
+             FUEL_IDS.every(id => currentSelection.has(id));
+    }
+
+    function isAllPreset() {
+      return currentSelection.size === ALL_VEHICLE_IDS.length;
+    }
+
+    function updateSelectorUI() {
+      const size = currentSelection.size;
+      let label;
+      if (size === 0) {
+        label = 'No vehicles selected';
+      } else if (isAllPreset()) {
+        label = '🚛 All Vehicles';
+      } else if (isFuelOnlyPreset()) {
+        label = '⛽ Fuel Trucks Only';
+      } else if (size === 1) {
+        const id = [...currentSelection][0];
+        const spec = VEHICLE_CATALOG.find(v => v.id === id);
+        label = `${spec.emoji} ${spec.displayName}`;
+      } else {
+        label = `${size} of ${ALL_VEHICLE_IDS.length} vehicles`;
+      }
+      document.getElementById('truckPickerLabel').textContent = label;
+
+      // Individual vehicle checkmarks
+      document.querySelectorAll('.truck-option.individual').forEach(opt => {
+        opt.classList.toggle('selected', currentSelection.has(opt.dataset.id));
+      });
+
+      // Preset highlight
+      document.querySelectorAll('.truck-option.preset').forEach(opt => {
+        const preset = opt.dataset.preset;
+        let active = false;
+        if (preset === 'ALL') active = isAllPreset();
+        else if (preset === 'FUEL') active = isFuelOnlyPreset();
+        opt.classList.toggle('active', active);
+      });
     }
 
     document.addEventListener('click', e => {
@@ -666,7 +754,7 @@
       }
     });
 
-    // ── Point-in-polygon (ray casting) ─────────────────────────────────────
+    // ── Point-in-polygon ─────────────────────────────────────────────────
     function pointInPolygon(point, polygonPoints) {
       if (!point || !polygonPoints || polygonPoints.length < 3) return false;
       const x = point.x, y = point.y;
@@ -702,10 +790,9 @@
                category: 'unknown', color: '#607D8B', fleetName: vehicle.name };
     }
 
+    // Vehicle IDs in current selection, in canonical catalog order
     function vehicleIdsInFilter() {
-      if (currentFilter === 'ALL') return VEHICLE_CATALOG.map(v => v.id);
-      if (currentFilter === 'FUEL') return FUEL_IDS;
-      return [currentFilter];
+      return ALL_VEHICLE_IDS.filter(id => currentSelection.has(id));
     }
 
     // ── Trip enrichment ────────────────────────────────────────────────────
@@ -719,7 +806,6 @@
           startTime: new Date(t.start),
           stopTime: new Date(t.stop),
           stopZone: findZoneForPoint(t.stopPoint),
-          // HH:MM:SS strings → minutes
           drivingMins: durationToMinutes(t.drivingDuration),
           idlingMins: durationToMinutes(t.idlingDuration)
         };
@@ -737,18 +823,15 @@
     }
 
     function filterTripsByCurrentSelection(trips) {
-      const allowedIds = vehicleIdsInFilter();
-      return trips.filter(t => allowedIds.includes(t.vehicleId));
+      return trips.filter(t => currentSelection.has(t.vehicleId));
     }
 
-    // Classify a trip's activity based on where it STOPPED (destination)
-    // load = stopped at Rio Gantry; deliver = Mine Farm/Gulkula; refuel = BP; wait = anywhere else
     function activityOfTrip(t) {
       const role = ZONE_TYPES[t.stopZone]?.role;
       if (role === 'load') return 'load';
       if (role === 'deliver') return 'deliver';
       if (role === 'fuel') return 'refuel';
-      return 'wait'; // depot, other, or outside any named zone
+      return 'wait';
     }
 
     // ── Data Loading ──────────────────────────────────────────────────────
@@ -842,18 +925,10 @@
                sampleSize: turnarounds.length };
     }
 
-    function totalDistance(trips) {
-      return trips.reduce((sum, t) => sum + (t.distance || 0), 0);
-    }
-    function totalDrivingMins(trips) {
-      return trips.reduce((sum, t) => sum + (t.drivingMins || 0), 0);
-    }
-    function totalIdlingMins(trips) {
-      return trips.reduce((sum, t) => sum + (t.idlingMins || 0), 0);
-    }
-    function totalEngineMins(trips) {
-      return totalDrivingMins(trips) + totalIdlingMins(trips);
-    }
+    function totalDistance(trips) { return trips.reduce((s, t) => s + (t.distance || 0), 0); }
+    function totalDrivingMins(trips) { return trips.reduce((s, t) => s + (t.drivingMins || 0), 0); }
+    function totalIdlingMins(trips) { return trips.reduce((s, t) => s + (t.idlingMins || 0), 0); }
+    function totalEngineMins(trips) { return totalDrivingMins(trips) + totalIdlingMins(trips); }
 
     function calcTrend(current, previous) {
       if (previous === 0 && current === 0) return { direction: 'flat', pct: 0 };
@@ -878,7 +953,6 @@
       el.textContent = `${arrow} ${trend.pct}% vs ${labelMap[currentPeriod]}`;
     }
 
-    // ── Vehicle status (from most recent trip) ───────────────────────────
     function getVehicleStatus(vehicleId, enrichedTrips) {
       const trips = enrichedTrips
         .filter(t => t.vehicleId === vehicleId)
@@ -915,7 +989,8 @@
       const filteredPrev = filterTripsByCurrentSelection(enrichedPrev);
 
       const filterIds = vehicleIdsInFilter();
-      const fuelFocus = currentFilter === 'FUEL' || FUEL_IDS.includes(currentFilter);
+      // Fuel focus = current selection is non-empty and ALL selected vehicles are fuel
+      const fuelFocus = filterIds.length > 0 && filterIds.every(id => FUEL_IDS.includes(id));
 
       if (fuelFocus) renderFuelKPIs(filtered, filteredPrev);
       else renderFleetKPIs(filtered, filteredPrev);
@@ -988,10 +1063,10 @@
         return (new Date() - latest.stopTime) / 1000 / 60 < 120;
       }).length;
       document.getElementById('kpi4Label').textContent = 'Vehicles Active Now';
-      document.getElementById('kpi4Value').textContent = `${active}/${total}`;
-      document.getElementById('kpi4Sub').textContent = active === 0
-        ? 'No recent activity'
-        : `${active} vehicle${active !== 1 ? 's' : ''} moving in last 2 hours`;
+      document.getElementById('kpi4Value').textContent = `${active}/${total || 0}`;
+      document.getElementById('kpi4Sub').textContent = total === 0
+        ? 'No vehicles selected'
+        : (active === 0 ? 'No recent activity' : `${active} vehicle${active !== 1 ? 's' : ''} moving in last 2 hours`);
     }
 
     function splitByFuelTruck(trips, role) {
@@ -1062,9 +1137,15 @@
       grid.innerHTML = '';
 
       if (filterIds.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><div class="icon">🚛</div><div>No vehicles match current filter</div></div>';
+        grid.style.gridTemplateColumns = '1fr';
+        grid.innerHTML = '<div class="empty-state"><div class="icon">🚛</div><div>No vehicles selected — open the vehicle picker to choose one or more</div></div>';
         return;
       }
+
+      // Dynamic columns: exactly N columns for N selected (capped at 7)
+      // → 1-6 selected = 1 row, 7 selected = 1 row (tight but fits)
+      const cols = Math.min(filterIds.length, 7);
+      grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
 
       filterIds.forEach(vehicleId => {
         const spec = VEHICLE_CATALOG.find(v => v.id === vehicleId);
@@ -1087,23 +1168,23 @@
         card.innerHTML = `
           <div class="truck-card-header" style="border-top-color: ${spec.color}">
             <span class="truck-emoji">${spec.emoji}</span>
-            <div>
-              <div class="truck-name">${spec.displayName}</div>
+            <div style="min-width: 0; flex: 1;">
+              <div class="truck-name" title="${spec.displayName}">${spec.displayName}</div>
               <div class="truck-rego">${spec.category === 'fuel' ? 'Fuel delivery' : spec.category === 'equipment' ? 'Equipment' : 'Truck'}</div>
             </div>
             <span class="truck-badge ${status.badge}">${status.text}</span>
           </div>
           <div class="truck-card-body">
             <div class="truck-stat-row">
-              <span class="truck-stat-label">Current location</span>
-              <span class="truck-stat-value">${status.location}</span>
+              <span class="truck-stat-label">Location</span>
+              <span class="truck-stat-value" title="${status.location}">${status.location}</span>
             </div>
             <div class="truck-stat-row">
               <span class="truck-stat-label">Last seen</span>
               <span class="truck-stat-value">${status.lastSeen}</span>
             </div>
             <div class="truck-stat-row">
-              <span class="truck-stat-label">Trips in period</span>
+              <span class="truck-stat-label">Trips</span>
               <span class="truck-stat-value">${vTrips.length}</span>
             </div>
             <div class="truck-stat-row">
@@ -1111,15 +1192,15 @@
               <span class="truck-stat-value">${distance.toFixed(1)} km</span>
             </div>
             <div class="truck-stat-row">
-              <span class="truck-stat-label">Engine hours</span>
+              <span class="truck-stat-label">Engine</span>
               <span class="truck-stat-value">
                 ${engineHrs.toFixed(1)}h
-                <span class="truck-stat-sub">(${drivingHrs.toFixed(1)}h drive · ${idlingHrs.toFixed(1)}h idle)</span>
+                <span class="truck-stat-sub">${drivingHrs.toFixed(1)}h drive · ${idlingHrs.toFixed(1)}h idle</span>
               </span>
             </div>
             ${isFuel ? `
             <div class="truck-stat-row">
-              <span class="truck-stat-label">Loads / Deliveries</span>
+              <span class="truck-stat-label">Loads / Deliv</span>
               <span class="truck-stat-value">
                 <span style="color: var(--color-primary)">${loads}</span>
                  / 
@@ -1134,7 +1215,6 @@
 
     // ── Charts ────────────────────────────────────────────────────────────
     function renderCharts(filtered, fuelFocus, filterIds) {
-      // Chart 1 — Trips by vehicle (bar)
       const vehicleLabels = filterIds.map(id => {
         const spec = VEHICLE_CATALOG.find(v => v.id === id);
         return spec?.id || id;
@@ -1179,7 +1259,6 @@
         plugins: [ChartDataLabels]
       });
 
-      // Chart 2 — Delivery split (fuel focus) OR Distance by vehicle (fleet focus)
       if (kpi2Chart) kpi2Chart.destroy();
       if (fuelFocus) {
         const gulkula = filtered.filter(t => t.stopZone === 'Gulkula Mine').length;
@@ -1249,12 +1328,10 @@
         });
       }
 
-      // Chart 3 — Activity by hour (stacked in fuel focus, simple in fleet view)
       document.getElementById('chart3Title').textContent = 'Activity by Hour';
       if (kpi3Chart) kpi3Chart.destroy();
 
       if (fuelFocus) {
-        // Stacked: classify each trip by its stop destination
         document.getElementById('chart3Sub').textContent = 'Trip starts by hour, coloured by destination';
         const hrLabels = Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}`);
         const byActivity = {
@@ -1295,7 +1372,6 @@
           }
         });
       } else {
-        // Fleet view: simple single-color hourly count
         document.getElementById('chart3Sub').textContent = 'Trip starts by hour of day';
         const hourly = new Array(24).fill(0);
         filtered.forEach(t => { const h = t.startTime.getHours(); hourly[h]++; });
@@ -1338,7 +1414,7 @@
       const filtered = filterTripsByCurrentSelection(enriched);
       const context = {
         period: currentPeriod,
-        filter: currentFilter,
+        selection: [...currentSelection],
         totals: {
           trips: filtered.length,
           loads: countByRole(filtered, 'load'),
@@ -1412,8 +1488,7 @@
     document.querySelectorAll('.period-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.period === currentPeriod);
     });
-    document.getElementById('periodLabel').textContent =
-      ({ daily: 'Today', weekly: 'This Week (last 7 days)', monthly: 'This Month' })[currentPeriod];
+    updateSelectorUI();
 
     loadDashboard();
     setInterval(loadDashboard, 60000);
