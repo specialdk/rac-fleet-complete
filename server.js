@@ -353,6 +353,97 @@ app.get('/api/vehicle-locations', async (req, res) => {
   }
 });
 
+// ── NEW ENDPOINTS FOR DASHBOARD ──────────────────────────────────────────────
+
+// Get all geofences/zones
+app.get('/api/geofences', async (req, res) => {
+  try {
+    const zones = await geotabCall('Get', { typeName: 'Zone' });
+    res.json({
+      count: zones?.length || 0,
+      geofences: zones || []
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get zone stop events (geofence entry/exit)
+app.get('/api/zone-events', async (req, res) => {
+  try {
+    const { fromDate, toDate, deviceId, zoneId } = req.query;
+    
+    const search = {
+      typeName: 'ZoneStop',
+    };
+
+    if (fromDate) {
+      search.fromDate = fromDate;
+    }
+    if (toDate) {
+      search.toDate = toDate;
+    }
+    if (deviceId) {
+      search.deviceSearch = { id: deviceId };
+    }
+    if (zoneId) {
+      search.zoneSearch = { id: zoneId };
+    }
+
+    const events = await geotabCall('Get', search);
+    
+    res.json({
+      count: events?.length || 0,
+      events: events || []
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get trips for productivity analysis
+app.get('/api/trips', async (req, res) => {
+  try {
+    const { fromDate, toDate, deviceId } = req.query;
+    
+    const search = {
+      typeName: 'Trip',
+    };
+
+    if (fromDate) {
+      search.fromDate = fromDate;
+    }
+    if (toDate) {
+      search.toDate = toDate;
+    }
+    if (deviceId) {
+      search.deviceSearch = { id: deviceId };
+    }
+
+    const trips = await geotabCall('Get', search);
+    
+    res.json({
+      count: trips?.length || 0,
+      trips: trips || []
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get status data (real-time vehicle info)
+app.get('/api/status-data', async (req, res) => {
+  try {
+    const statusData = await geotabCall('Get', { typeName: 'StatusData' });
+    res.json({
+      count: statusData?.length || 0,
+      statusData: statusData || []
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ── Server Startup ────────────────────────────────────────────────────────────
 
 async function startServer() {
