@@ -225,7 +225,7 @@
     /* ── Truck Cards Grid ── */
     .truck-grid {
       display: grid;
-      grid-template-columns: repeat(2, 1fr);
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
       gap: 16px; margin-bottom: 24px;
     }
 
@@ -405,19 +405,28 @@
       </div>
     </div>
     <div class="header-right">
-      <!-- Truck Picker -->
+      <!-- Vehicle Picker (All / Fuel Only / Individual vehicles) -->
       <div class="truck-picker" id="truckPicker">
         <button class="truck-picker-btn" onclick="toggleTruckPicker()">
-          <span id="truckPickerLabel">🚛 All Trucks</span>
+          <span id="truckPickerLabel">🚛 All Vehicles</span>
           <span class="arrow">▼</span>
         </button>
         <div class="truck-picker-dropdown" id="truckDropdown">
-          <div class="truck-option selected" data-id="ALL" onclick="selectTruck('ALL','🚛 All Trucks',this)">
-            🚛 All Trucks <span class="check">✓</span>
+          <div class="truck-option selected" data-id="ALL" onclick="selectTruck('ALL','🚛 All Vehicles',this)">
+            🚛 All Vehicles <span class="check">✓</span>
+          </div>
+          <div class="truck-option" data-id="FUEL" onclick="selectTruck('FUEL','⛽ Fuel Trucks Only',this)">
+            ⛽ Fuel Trucks Only
           </div>
           <div class="truck-option-divider"></div>
           <div class="truck-option" data-id="RF01" onclick="selectTruck('RF01','🔴 RF01 Kenworth T609',this)">🔴 RF01 Kenworth T609</div>
           <div class="truck-option" data-id="RF02" onclick="selectTruck('RF02','🔵 RF02 SAR Fuel T408',this)">🔵 RF02 SAR Fuel T408</div>
+          <div class="truck-option-divider"></div>
+          <div class="truck-option" data-id="T409" onclick="selectTruck('T409','🟢 T409 SAR PM',this)">🟢 T409 SAR PM</div>
+          <div class="truck-option" data-id="TIPPER" onclick="selectTruck('TIPPER','🟡 UD HR Tipper',this)">🟡 UD HR Tipper</div>
+          <div class="truck-option" data-id="UDPM" onclick="selectTruck('UDPM','🟣 UD Prime Mover',this)">🟣 UD Prime Mover</div>
+          <div class="truck-option" data-id="BOBCAT" onclick="selectTruck('BOBCAT','🟠 Bobcat TH',this)">🟠 Bobcat TH</div>
+          <div class="truck-option" data-id="SKID" onclick="selectTruck('SKID','🟤 Cat Skid Steer',this)">🟤 Cat Skid Steer</div>
         </div>
       </div>
 
@@ -450,27 +459,27 @@
       <!-- KPI Row -->
       <div class="kpi-row">
         <div class="kpi-card blue">
-          <div class="kpi-label" id="kpiLoadsLabel">Loads Today</div>
-          <div class="kpi-value" id="kpiLoads">—</div>
-          <div class="kpi-sub" id="kpiLoadsSub">Loading...</div>
-          <div class="kpi-trend" id="kpiLoadsTrend"></div>
+          <div class="kpi-label" id="kpi1Label">Loads Today</div>
+          <div class="kpi-value" id="kpi1Value">—</div>
+          <div class="kpi-sub" id="kpi1Sub">Loading...</div>
+          <div class="kpi-trend" id="kpi1Trend"></div>
         </div>
         <div class="kpi-card green">
-          <div class="kpi-label" id="kpiDeliveriesLabel">Deliveries Today</div>
-          <div class="kpi-value" id="kpiDeliveries">—</div>
-          <div class="kpi-sub" id="kpiDeliveriesSub">Loading...</div>
-          <div class="kpi-trend" id="kpiDeliveriesTrend"></div>
+          <div class="kpi-label" id="kpi2Label">Deliveries Today</div>
+          <div class="kpi-value" id="kpi2Value">—</div>
+          <div class="kpi-sub" id="kpi2Sub">Loading...</div>
+          <div class="kpi-trend" id="kpi2Trend"></div>
         </div>
         <div class="kpi-card amber">
-          <div class="kpi-label">Avg Turnaround</div>
-          <div class="kpi-value" id="kpiTurnaround">—</div>
-          <div class="kpi-sub" id="kpiTurnaroundSub">gantry → deliver → back</div>
-          <div class="kpi-trend" id="kpiTurnaroundTrend"></div>
+          <div class="kpi-label" id="kpi3Label">Avg Turnaround</div>
+          <div class="kpi-value" id="kpi3Value">—</div>
+          <div class="kpi-sub" id="kpi3Sub">gantry → deliver → back</div>
+          <div class="kpi-trend" id="kpi3Trend"></div>
         </div>
         <div class="kpi-card red">
-          <div class="kpi-label">Trucks Active Now</div>
-          <div class="kpi-value" id="kpiActive">—</div>
-          <div class="kpi-sub" id="kpiActiveSub">Checking positions...</div>
+          <div class="kpi-label" id="kpi4Label">Vehicles Active Now</div>
+          <div class="kpi-value" id="kpi4Value">—</div>
+          <div class="kpi-sub" id="kpi4Sub">Checking positions...</div>
         </div>
       </div>
 
@@ -492,21 +501,21 @@
       <!-- Charts — 3 equal columns -->
       <div class="chart-row" id="chartRow">
         <div class="chart-card">
-          <div class="chart-title">Loads by Truck</div>
+          <div class="chart-title" id="chart1Title">Loads by Truck</div>
           <div class="chart-subtitle" id="chart1Sub">Gantry visits in the selected period</div>
           <div class="chart-container">
             <canvas id="loadsChart"></canvas>
           </div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Delivery Split</div>
+          <div class="chart-title" id="chart2Title">Delivery Split</div>
           <div class="chart-subtitle" id="chart2Sub">Where the fuel went</div>
           <div class="chart-container">
             <canvas id="deliveryChart"></canvas>
           </div>
         </div>
         <div class="chart-card">
-          <div class="chart-title">Activity by Hour</div>
+          <div class="chart-title" id="chart3Title">Activity by Hour</div>
           <div class="chart-subtitle" id="chart3Sub">Zone events by hour of day</div>
           <div class="chart-container">
             <canvas id="hourlyChart"></canvas>
@@ -552,63 +561,49 @@
 
   <script>
     // ── Config ──────────────────────────────────────────────────────────────
-    const API = window.location.origin; // Same origin as dashboard (Railway)
-
-    // Disable datalabels globally — only opt-in per chart
+    const API = window.location.origin;
     Chart.defaults.plugins.datalabels = { display: false };
+
+    // ── Vehicle Catalog ────────────────────────────────────────────────────
+    // Each vehicle in the fleet. Matching is done by substring against
+    // FleetComplete's `name` field. `category` drives what KPIs show.
+    const VEHICLE_CATALOG = [
+      { id: 'RF01',   matches: ['RF01', 'T609'],         displayName: 'RF01 Kenworth T609',   emoji: '🔴', category: 'fuel',      color: '#C0392B' },
+      { id: 'RF02',   matches: ['RF02', 'T408'],         displayName: 'RF02 SAR Fuel T408',   emoji: '🔵', category: 'fuel',      color: '#2980B9' },
+      { id: 'T409',   matches: ['T409', 'SAR PM'],       displayName: 'T409 SAR PM',          emoji: '🟢', category: 'truck',     color: '#16A085' },
+      { id: 'TIPPER', matches: ['UD HR Tipper', 'Tipper'],displayName: 'UD HR Tipper',        emoji: '🟡', category: 'truck',     color: '#F39C12' },
+      { id: 'UDPM',   matches: ['UD Prime Mover'],       displayName: 'UD Prime Mover',       emoji: '🟣', category: 'truck',     color: '#9B59B6' },
+      { id: 'BOBCAT', matches: ['Bobcat'],               displayName: 'Bobcat TH',            emoji: '🟠', category: 'equipment', color: '#E67E22' },
+      { id: 'SKID',   matches: ['Cat Skid', 'Skid steer'],displayName: 'Cat Skid Steer 262C', emoji: '🟤', category: 'equipment', color: '#795548' }
+    ];
+    const FUEL_IDS = ['RF01', 'RF02'];
+
+    // Zone role classification drives KPI counting
+    const ZONE_TYPES = {
+      'Rio Fuel Gantry': { role: 'load',    color: '#27ae60' },
+      'BP Nhulunbuy':    { role: 'fuel',    color: '#f39c12' },
+      'Mine Fuel Farm':  { role: 'deliver', color: '#8E44AD' },
+      'Gulkula Mine':    { role: 'deliver', color: '#C0392B' },
+      'Yirrkala Store':  { role: 'other',   color: '#607D8B' },
+      'Quarry Depot':    { role: 'depot',   color: '#2980B9' }
+    };
 
     // ── State ──────────────────────────────────────────────────────────────
     let currentPeriod = localStorage.getItem('racFuelPeriod') || 'daily';
-    let currentTruck = 'ALL';
-    let dashData = {
-      vehicles: [],
-      geofences: [],
-      zoneEvents: [],
-      previousEvents: [],
-      locations: []
-    };
+    let currentFilter = 'ALL'; // ALL, FUEL, or a specific vehicle id (RF01, RF02, T409, ...)
+    let dashData = { vehicles: [], geofences: [], trips: [], previousTrips: [], locations: [] };
     let chatHistory = [];
-    let loadsChart = null;
-    let deliveryChart = null;
-    let hourlyChart = null;
-
-    // Truck visual config
-    const TRUCK_CONFIG = {
-      'RF01': { emoji: '🔴', color: '#C0392B', name: 'Kenworth T609', class: 'RF01' },
-      'RF02': { emoji: '🔵', color: '#2980B9', name: 'SAR Fuel T408', class: 'RF02' }
-    };
-
-    // Zone classification
-    const ZONE_TYPES = {
-      'Rio Fuel Gantry':   { role: 'load',    emoji: '⛽', color: '#27ae60' },
-      'BP Nhulunbuy':      { role: 'fuel',    emoji: '⛽', color: '#f39c12' },
-      'Mine Fuel Farm':    { role: 'deliver', emoji: '🏭', color: '#8E44AD' },
-      'Gulkula Mine':      { role: 'deliver', emoji: '⛏️', color: '#C0392B' },
-      'Yirrkala Store':    { role: 'other',   emoji: '🏪', color: '#607D8B' },
-      'Quarry Depot':      { role: 'depot',   emoji: '🏠', color: '#2980B9' }
-    };
+    let kpi1Chart = null, kpi2Chart = null, kpi3Chart = null;
 
     // ── Period Management ──────────────────────────────────────────────────
     function selectPeriod(period) {
       currentPeriod = period;
       localStorage.setItem('racFuelPeriod', period);
-
-      // Update button states
       document.querySelectorAll('.period-btn').forEach(btn => {
         btn.classList.toggle('active', btn.dataset.period === period);
       });
-
-      // Update labels based on period
-      const labels = {
-        daily:   { label: 'Today', kpi: 'Today', sub: 'vs yesterday' },
-        weekly:  { label: 'This Week (last 7 days)', kpi: 'This Week', sub: 'vs previous 7 days' },
-        monthly: { label: 'This Month', kpi: 'This Month', sub: 'vs last month' }
-      };
-      document.getElementById('periodLabel').textContent = labels[period].label;
-      document.getElementById('kpiLoadsLabel').textContent = `Loads ${labels[period].kpi}`;
-      document.getElementById('kpiDeliveriesLabel').textContent = `Deliveries ${labels[period].kpi}`;
-
-      // Reload with new period
+      document.getElementById('periodLabel').textContent =
+        ({ daily: 'Today', weekly: 'This Week (last 7 days)', monthly: 'This Month' })[period];
       loadDashboard();
     }
 
@@ -616,30 +611,21 @@
       const now = new Date();
       const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
       let from, to, prevFrom, prevTo;
-
       if (period === 'daily') {
-        from = today;
-        to = now;
+        from = today; to = now;
         prevFrom = new Date(today); prevFrom.setDate(prevFrom.getDate() - 1);
         prevTo = new Date(today);
       } else if (period === 'weekly') {
-        from = new Date(today); from.setDate(from.getDate() - 7);
-        to = now;
+        from = new Date(today); from.setDate(from.getDate() - 7); to = now;
         prevFrom = new Date(today); prevFrom.setDate(prevFrom.getDate() - 14);
         prevTo = new Date(today); prevTo.setDate(prevTo.getDate() - 7);
-      } else { // monthly
-        from = new Date(now.getFullYear(), now.getMonth(), 1);
-        to = now;
+      } else {
+        from = new Date(now.getFullYear(), now.getMonth(), 1); to = now;
         prevFrom = new Date(now.getFullYear(), now.getMonth() - 1, 1);
         prevTo = new Date(now.getFullYear(), now.getMonth(), 1);
       }
-
-      return {
-        fromDate: from.toISOString(),
-        toDate: to.toISOString(),
-        prevFromDate: prevFrom.toISOString(),
-        prevToDate: prevTo.toISOString()
-      };
+      return { fromDate: from.toISOString(), toDate: to.toISOString(),
+               prevFromDate: prevFrom.toISOString(), prevToDate: prevTo.toISOString() };
     }
 
     // ── Truck Picker ──────────────────────────────────────────────────────
@@ -648,18 +634,16 @@
     }
 
     function selectTruck(id, label, el) {
-      currentTruck = id;
+      currentFilter = id;
       document.getElementById('truckPickerLabel').textContent = label;
       document.querySelectorAll('.truck-option').forEach(o => {
         o.classList.remove('selected');
-        const check = o.querySelector('.check');
-        if (check) check.remove();
+        const c = o.querySelector('.check'); if (c) c.remove();
       });
       el.classList.add('selected');
       if (!el.querySelector('.check')) {
-        const check = document.createElement('span');
-        check.className = 'check'; check.textContent = '✓';
-        el.appendChild(check);
+        const c = document.createElement('span'); c.className = 'check'; c.textContent = '✓';
+        el.appendChild(c);
       }
       document.getElementById('truckPicker').classList.remove('open');
       renderDashboard();
@@ -671,19 +655,98 @@
       }
     });
 
+    // ── Point-in-polygon (ray casting) ─────────────────────────────────────
+    // Classic algorithm: shoot a horizontal ray from the point and count
+    // how many polygon edges it crosses. Odd = inside, even = outside.
+    function pointInPolygon(point, polygonPoints) {
+      if (!point || !polygonPoints || polygonPoints.length < 3) return false;
+      const x = point.x, y = point.y;
+      let inside = false;
+      for (let i = 0, j = polygonPoints.length - 1; i < polygonPoints.length; j = i++) {
+        const xi = polygonPoints[i].x, yi = polygonPoints[i].y;
+        const xj = polygonPoints[j].x, yj = polygonPoints[j].y;
+        const intersect = ((yi > y) !== (yj > y)) &&
+          (x < (xj - xi) * (y - yi) / (yj - yi) + xi);
+        if (intersect) inside = !inside;
+      }
+      return inside;
+    }
+
+    function findZoneForPoint(point) {
+      if (!point) return null;
+      for (const zone of dashData.geofences) {
+        if (pointInPolygon(point, zone.points)) return zone.name;
+      }
+      return null;
+    }
+
+    // ── Vehicle lookup ─────────────────────────────────────────────────────
+    function getVehicleSpec(deviceId) {
+      const vehicle = dashData.vehicles.find(v => v.id === deviceId);
+      if (!vehicle) return null;
+      for (const spec of VEHICLE_CATALOG) {
+        if (spec.matches.some(m => vehicle.name?.includes(m))) {
+          return { ...spec, fleetName: vehicle.name };
+        }
+      }
+      return { id: vehicle.id, matches: [], displayName: vehicle.name, emoji: '⚪',
+               category: 'unknown', color: '#607D8B', fleetName: vehicle.name };
+    }
+
+    // Which vehicle IDs match the current filter?
+    function vehicleIdsInFilter() {
+      if (currentFilter === 'ALL') return VEHICLE_CATALOG.map(v => v.id);
+      if (currentFilter === 'FUEL') return FUEL_IDS;
+      return [currentFilter];
+    }
+
+    // ── Trip enrichment ────────────────────────────────────────────────────
+    // Attach computed fields we need for rendering, and filter to vehicles
+    // we actually recognize (the 7 in VEHICLE_CATALOG).
+    function enrichTrips(trips) {
+      return (trips || []).map(t => {
+        const spec = getVehicleSpec(t.device?.id);
+        return {
+          ...t,
+          vehicleId: spec?.id || null,
+          vehicleSpec: spec,
+          startTime: new Date(t.start),
+          stopTime: new Date(t.stop),
+          stopZone: findZoneForPoint(t.stopPoint),
+          // drivingDuration comes as "HH:MM:SS" string — convert to minutes
+          drivingMins: durationToMinutes(t.drivingDuration)
+        };
+      }).filter(t => t.vehicleId);
+    }
+
+    function durationToMinutes(hms) {
+      if (!hms) return 0;
+      const parts = String(hms).split(':');
+      if (parts.length < 2) return 0;
+      const h = parseInt(parts[0]) || 0;
+      const m = parseInt(parts[1]) || 0;
+      const s = parseInt(parts[2]) || 0;
+      return h * 60 + m + s / 60;
+    }
+
+    function filterTripsByCurrentSelection(trips) {
+      const allowedIds = vehicleIdsInFilter();
+      return trips.filter(t => allowedIds.includes(t.vehicleId));
+    }
+
     // ── Data Loading ──────────────────────────────────────────────────────
     async function loadDashboard() {
       updateConnectionStatus('loading');
-      document.getElementById('lastUpdated').innerHTML = '<span class="spinner-sm"></span> Loading data...';
+      document.getElementById('lastUpdated').innerHTML =
+        '<span class="spinner-sm"></span> Loading data...';
 
       try {
         const { fromDate, toDate, prevFromDate, prevToDate } = getDateRange(currentPeriod);
 
-        // Test connection + load static data in parallel
         const [connRes, sessionRes, vehiclesRes, geofencesRes, locationsRes] = await Promise.all([
           fetch(`${API}/api/connection-status`).then(r => r.json()).catch(() => ({ connected: false })),
           fetch(`${API}/api/session-status`).then(r => r.json()).catch(() => null),
-          fetch(`${API}/api/fuel-delivery-vehicles`).then(r => r.json()).catch(() => ({ vehicles: [] })),
+          fetch(`${API}/api/vehicles`).then(r => r.json()).catch(() => ({ vehicles: [] })),
           fetch(`${API}/api/geofences`).then(r => r.json()).catch(() => ({ geofences: [] })),
           fetch(`${API}/api/vehicle-locations`).then(r => r.json()).catch(() => ({ locations: [] }))
         ]);
@@ -694,28 +757,25 @@
         dashData.geofences = geofencesRes.geofences || [];
         dashData.locations = locationsRes.locations || [];
 
-        // Session status display
         if (sessionRes) {
           const days = sessionRes.daysRemaining ?? 0;
           document.getElementById('sessionStatus').innerHTML =
-            `🔑 Session: ${days} days remaining · ${dashData.vehicles.length} fuel trucks tracked`;
+            `🔑 Session: ${days} days remaining · ${dashData.vehicles.length} vehicles tracked`;
         }
-
         updateConnectionStatus('connected');
 
-        // Zone events: current period + previous period for trend comparison
-        const [currentEvents, previousEvents] = await Promise.all([
-          fetch(`${API}/api/zone-events?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`)
-            .then(r => r.json()).catch(() => ({ events: [] })),
-          fetch(`${API}/api/zone-events?fromDate=${encodeURIComponent(prevFromDate)}&toDate=${encodeURIComponent(prevToDate)}`)
-            .then(r => r.json()).catch(() => ({ events: [] }))
+        // Trips: current period + previous period for trend comparison
+        const [currentRes, previousRes] = await Promise.all([
+          fetch(`${API}/api/trips?fromDate=${encodeURIComponent(fromDate)}&toDate=${encodeURIComponent(toDate)}`)
+            .then(r => r.json()).catch(() => ({ trips: [] })),
+          fetch(`${API}/api/trips?fromDate=${encodeURIComponent(prevFromDate)}&toDate=${encodeURIComponent(prevToDate)}`)
+            .then(r => r.json()).catch(() => ({ trips: [] }))
         ]);
 
-        dashData.zoneEvents = currentEvents.events || [];
-        dashData.previousEvents = previousEvents.events || [];
+        dashData.trips = currentRes.trips || [];
+        dashData.previousTrips = previousRes.trips || [];
 
         renderDashboard();
-
         document.getElementById('lastUpdated').textContent =
           `Last updated: ${new Date().toLocaleTimeString('en-AU')}`;
 
@@ -738,96 +798,85 @@
       }
     }
 
-    // ── Data Processing ──────────────────────────────────────────────────
-    // Look up zone name from zone ID
-    function getZoneName(zoneId) {
-      const zone = dashData.geofences.find(z => z.id === zoneId);
-      return zone ? zone.name : 'Unknown';
+    // ── KPI Computation ──────────────────────────────────────────────────
+    // Fuel-specific KPIs (only for fuel views)
+    function countByRole(trips, role) {
+      return trips.filter(t => ZONE_TYPES[t.stopZone]?.role === role).length;
     }
 
-    // Look up truck short name (RF01 / RF02) from device ID
-    function getTruckId(deviceId) {
-      const vehicle = dashData.vehicles.find(v => v.id === deviceId);
-      if (!vehicle) return null;
-      if (vehicle.name?.includes('RF01')) return 'RF01';
-      if (vehicle.name?.includes('RF02')) return 'RF02';
-      return null;
-    }
-
-    // Enrich zone events with readable zone names and truck IDs
-    function enrichEvents(events) {
-      return events.map(e => ({
-        ...e,
-        zoneName: getZoneName(e.zone?.id),
-        truckId: getTruckId(e.device?.id),
-        startTime: new Date(e.dateTime || e.activeFrom)
-      })).filter(e => e.truckId); // only RF01/RF02 events
-    }
-
-    // Filter by currently selected truck
-    function filterByTruck(events) {
-      if (currentTruck === 'ALL') return events;
-      return events.filter(e => e.truckId === currentTruck);
-    }
-
-    // Count events by zone role
-    function countByRole(events, role) {
-      return events.filter(e => ZONE_TYPES[e.zoneName]?.role === role).length;
-    }
-
-    // Calculate average turnaround: time between consecutive Gantry → Delivery events
-    function calcAvgTurnaround(events) {
+    // Classic load→deliver turnaround
+    function calcAvgTurnaround(trips) {
       const perTruck = {};
-      events.sort((a, b) => a.startTime - b.startTime);
-
-      events.forEach(e => {
-        if (!perTruck[e.truckId]) perTruck[e.truckId] = [];
-        perTruck[e.truckId].push(e);
+      const sorted = [...trips].sort((a, b) => a.startTime - b.startTime);
+      sorted.forEach(t => {
+        if (!perTruck[t.vehicleId]) perTruck[t.vehicleId] = [];
+        perTruck[t.vehicleId].push(t);
       });
-
       const turnarounds = [];
-      Object.values(perTruck).forEach(truckEvents => {
-        for (let i = 0; i < truckEvents.length - 1; i++) {
-          const cur = truckEvents[i];
-          const next = truckEvents[i+1];
-          const isLoadToDeliver =
-            ZONE_TYPES[cur.zoneName]?.role === 'load' &&
-            ZONE_TYPES[next.zoneName]?.role === 'deliver';
-          if (isLoadToDeliver) {
+      Object.values(perTruck).forEach(truckTrips => {
+        for (let i = 0; i < truckTrips.length - 1; i++) {
+          const cur = truckTrips[i], next = truckTrips[i + 1];
+          if (ZONE_TYPES[cur.stopZone]?.role === 'load' &&
+              ZONE_TYPES[next.stopZone]?.role === 'deliver') {
             const mins = (next.startTime - cur.startTime) / 1000 / 60;
-            if (mins > 0 && mins < 360) turnarounds.push(mins); // exclude > 6hr (unrealistic)
+            if (mins > 0 && mins < 360) turnarounds.push(mins);
           }
         }
       });
-
-      if (turnarounds.length === 0) return null;
-      const avg = turnarounds.reduce((s, m) => s + m, 0) / turnarounds.length;
-      return { avgMins: Math.round(avg), sampleSize: turnarounds.length };
+      if (!turnarounds.length) return null;
+      return { avgMins: Math.round(turnarounds.reduce((s, m) => s + m, 0) / turnarounds.length),
+               sampleSize: turnarounds.length };
     }
 
-    // Trend: percent change between two values
+    // Fleet-wide KPIs (for all vehicles view)
+    function totalDistance(trips) {
+      return trips.reduce((sum, t) => sum + (t.distance || 0), 0);
+    }
+    function totalDrivingMins(trips) {
+      return trips.reduce((sum, t) => sum + (t.drivingMins || 0), 0);
+    }
+
     function calcTrend(current, previous) {
       if (previous === 0 && current === 0) return { direction: 'flat', pct: 0 };
       if (previous === 0) return { direction: 'up', pct: 100 };
       const pct = Math.round(((current - previous) / previous) * 100);
-      return {
-        direction: pct > 0 ? 'up' : (pct < 0 ? 'down' : 'flat'),
-        pct: Math.abs(pct)
-      };
+      return { direction: pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat', pct: Math.abs(pct) };
     }
 
-    // Determine current truck status from last event
-    function getTruckStatus(truckId) {
-      const truckEvents = dashData.zoneEvents
-        .filter(e => getTruckId(e.device?.id) === truckId)
-        .sort((a, b) => new Date(b.dateTime || b.activeFrom) - new Date(a.dateTime || a.activeFrom));
+    function renderTrend(elId, trend, invert = false) {
+      const el = document.getElementById(elId);
+      if (!trend || trend.direction === 'flat') {
+        el.className = 'kpi-trend flat';
+        el.textContent = '— no change';
+        return;
+      }
+      const dir = invert
+        ? (trend.direction === 'up' ? 'down' : trend.direction === 'down' ? 'up' : 'flat')
+        : trend.direction;
+      const arrow = dir === 'up' ? '▲' : '▼';
+      const labelMap = { daily: 'yesterday', weekly: 'last week', monthly: 'last month' };
+      el.className = `kpi-trend ${dir}`;
+      el.textContent = `${arrow} ${trend.pct}% vs ${labelMap[currentPeriod]}`;
+    }
 
-      if (truckEvents.length === 0) return { badge: 'unknown', text: 'No recent activity', location: '—' };
+    // ── Vehicle status (from most recent trip) ───────────────────────────
+    function getVehicleStatus(vehicleId, enrichedTrips) {
+      const trips = enrichedTrips
+        .filter(t => t.vehicleId === vehicleId)
+        .sort((a, b) => b.stopTime - a.stopTime);
 
-      const latest = truckEvents[0];
-      const zoneName = getZoneName(latest.zone?.id);
-      const role = ZONE_TYPES[zoneName]?.role;
+      if (trips.length === 0) {
+        return { badge: 'unknown', text: 'No recent activity', location: '—', lastSeen: '—' };
+      }
+      const latest = trips[0];
+      const minsAgo = (new Date() - latest.stopTime) / 1000 / 60;
+      const location = latest.stopZone || 'Outside tracked zones';
+      const lastSeen = latest.stopTime.toLocaleString('en-AU',
+        { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' });
 
+      if (minsAgo > 60 * 24) return { badge: 'idle', text: 'Inactive (>24h)', location, lastSeen };
+
+      const role = ZONE_TYPES[latest.stopZone]?.role;
       const badgeMap = {
         load:    { badge: 'loading',    text: 'Loading' },
         deliver: { badge: 'delivering', text: 'Delivering' },
@@ -835,156 +884,191 @@
         fuel:    { badge: 'loading',    text: 'Refuelling' },
         other:   { badge: 'idle',       text: 'Stopped' }
       };
-      const status = badgeMap[role] || { badge: 'moving', text: 'Moving' };
-
-      return {
-        badge: status.badge,
-        text: status.text,
-        location: zoneName,
-        lastSeen: new Date(latest.dateTime || latest.activeFrom).toLocaleTimeString('en-AU', { hour: '2-digit', minute: '2-digit' })
-      };
+      const s = badgeMap[role] || { badge: 'moving', text: 'Recently active' };
+      return { badge: s.badge, text: s.text, location, lastSeen };
     }
 
-    // ── Rendering ──────────────────────────────────────────────────
+    // ── Main render ────────────────────────────────────────────────────
     function renderDashboard() {
-      const enrichedCurrent = enrichEvents(dashData.zoneEvents);
-      const enrichedPrev = enrichEvents(dashData.previousEvents);
-      const filtered = filterByTruck(enrichedCurrent);
-      const filteredPrev = filterByTruck(enrichedPrev);
+      const enrichedCurrent = enrichTrips(dashData.trips);
+      const enrichedPrev = enrichTrips(dashData.previousTrips);
+      const filtered = filterTripsByCurrentSelection(enrichedCurrent);
+      const filteredPrev = filterTripsByCurrentSelection(enrichedPrev);
 
-      // ── KPIs ──
-      const loads = countByRole(filtered, 'load');
-      const loadsPrev = countByRole(filteredPrev, 'load');
-      const deliveries = countByRole(filtered, 'deliver');
-      const deliveriesPrev = countByRole(filteredPrev, 'deliver');
-      const turn = calcAvgTurnaround(filtered);
-      const turnPrev = calcAvgTurnaround(filteredPrev);
+      // Decide whether to show fuel-KPIs or fleet-KPIs based on current filter
+      const filterIds = vehicleIdsInFilter();
+      const fuelFocus = currentFilter === 'FUEL' || FUEL_IDS.includes(currentFilter);
 
-      // Loads KPI
-      document.getElementById('kpiLoads').textContent = loads;
-      document.getElementById('kpiLoadsSub').textContent = makeTruckSplit(filtered, 'load');
-      renderTrend('kpiLoadsTrend', calcTrend(loads, loadsPrev));
+      if (fuelFocus) renderFuelKPIs(filtered, filteredPrev);
+      else renderFleetKPIs(filtered, filteredPrev);
 
-      // Deliveries KPI
-      document.getElementById('kpiDeliveries').textContent = deliveries;
-      document.getElementById('kpiDeliveriesSub').textContent = makeDeliverySplit(filtered);
-      renderTrend('kpiDeliveriesTrend', calcTrend(deliveries, deliveriesPrev));
-
-      // Turnaround KPI
-      document.getElementById('kpiTurnaround').textContent = turn ? `${turn.avgMins}m` : '—';
-      document.getElementById('kpiTurnaroundSub').textContent = turn
-        ? `based on ${turn.sampleSize} load→deliver cycles`
-        : 'no complete cycles in period';
-      if (turn && turnPrev) {
-        const trend = calcTrend(turn.avgMins, turnPrev.avgMins);
-        // For turnaround, LOWER is better, so invert the direction visually
-        trend.direction = trend.direction === 'up' ? 'down' : (trend.direction === 'down' ? 'up' : 'flat');
-        renderTrend('kpiTurnaroundTrend', trend);
-      }
-
-      // Active trucks KPI
-      const activeTrucks = Object.keys(TRUCK_CONFIG).filter(id => {
-        const events = enrichedCurrent.filter(e => e.truckId === id);
-        if (events.length === 0) return false;
-        const latest = events.reduce((a, b) => a.startTime > b.startTime ? a : b);
-        const minsAgo = (new Date() - latest.startTime) / 1000 / 60;
-        return minsAgo < 120; // active if event in last 2 hours
-      }).length;
-      document.getElementById('kpiActive').textContent = `${activeTrucks}/2`;
-      document.getElementById('kpiActiveSub').textContent = activeTrucks === 0
-        ? 'No recent activity'
-        : `${activeTrucks} truck${activeTrucks !== 1 ? 's' : ''} moving in last 2 hours`;
-
-      // ── Alerts ──
-      renderAlerts(enrichedCurrent, activeTrucks);
-
-      // ── Truck Cards ──
-      renderTruckCards(enrichedCurrent);
-
-      // ── Charts ──
-      renderCharts(filtered);
+      renderActiveTrucksKPI(enrichedCurrent, filterIds);
+      renderVehicleCards(enrichedCurrent, filterIds);
+      renderCharts(filtered, fuelFocus, filterIds);
+      renderAlerts(filtered, filterIds);
     }
 
-    function makeTruckSplit(events, role) {
-      const rf01 = events.filter(e => e.truckId === 'RF01' && ZONE_TYPES[e.zoneName]?.role === role).length;
-      const rf02 = events.filter(e => e.truckId === 'RF02' && ZONE_TYPES[e.zoneName]?.role === role).length;
+    function renderFuelKPIs(trips, prevTrips) {
+      const loads = countByRole(trips, 'load');
+      const deliveries = countByRole(trips, 'deliver');
+      const loadsPrev = countByRole(prevTrips, 'load');
+      const deliveriesPrev = countByRole(prevTrips, 'deliver');
+      const turn = calcAvgTurnaround(trips);
+      const turnPrev = calcAvgTurnaround(prevTrips);
+
+      const periodLabel = ({ daily: 'Today', weekly: 'This Week', monthly: 'This Month' })[currentPeriod];
+      document.getElementById('kpi1Label').textContent = `Loads ${periodLabel}`;
+      document.getElementById('kpi1Value').textContent = loads;
+      document.getElementById('kpi1Sub').textContent = splitByFuelTruck(trips, 'load');
+      renderTrend('kpi1Trend', calcTrend(loads, loadsPrev));
+
+      document.getElementById('kpi2Label').textContent = `Deliveries ${periodLabel}`;
+      document.getElementById('kpi2Value').textContent = deliveries;
+      document.getElementById('kpi2Sub').textContent = splitByDeliveryZone(trips);
+      renderTrend('kpi2Trend', calcTrend(deliveries, deliveriesPrev));
+
+      document.getElementById('kpi3Label').textContent = 'Avg Turnaround';
+      document.getElementById('kpi3Value').textContent = turn ? `${turn.avgMins}m` : '—';
+      document.getElementById('kpi3Sub').textContent = turn
+        ? `${turn.sampleSize} load→deliver cycles`
+        : 'no complete cycles';
+      if (turn && turnPrev) renderTrend('kpi3Trend', calcTrend(turn.avgMins, turnPrev.avgMins), true);
+      else document.getElementById('kpi3Trend').textContent = '';
+    }
+
+    function renderFleetKPIs(trips, prevTrips) {
+      const totalTrips = trips.length;
+      const totalTripsPrev = prevTrips.length;
+      const distance = totalDistance(trips);
+      const distancePrev = totalDistance(prevTrips);
+      const hours = totalDrivingMins(trips) / 60;
+      const hoursPrev = totalDrivingMins(prevTrips) / 60;
+
+      document.getElementById('kpi1Label').textContent = 'Total Trips';
+      document.getElementById('kpi1Value').textContent = totalTrips;
+      document.getElementById('kpi1Sub').textContent = tripsByCategory(trips);
+      renderTrend('kpi1Trend', calcTrend(totalTrips, totalTripsPrev));
+
+      document.getElementById('kpi2Label').textContent = 'Distance';
+      document.getElementById('kpi2Value').textContent = `${distance.toFixed(1)}km`;
+      document.getElementById('kpi2Sub').textContent = distance > 0 ? `Across ${uniqueVehicles(trips)} vehicles` : '—';
+      renderTrend('kpi2Trend', calcTrend(Math.round(distance), Math.round(distancePrev)));
+
+      document.getElementById('kpi3Label').textContent = 'Driving Hours';
+      document.getElementById('kpi3Value').textContent = hours.toFixed(1);
+      document.getElementById('kpi3Sub').textContent = 'Total engine-on time';
+      renderTrend('kpi3Trend', calcTrend(Math.round(hours * 10), Math.round(hoursPrev * 10)));
+    }
+
+    function renderActiveTrucksKPI(enrichedCurrent, filterIds) {
+      const total = filterIds.length;
+      const active = filterIds.filter(vid => {
+        const trips = enrichedCurrent.filter(t => t.vehicleId === vid);
+        if (!trips.length) return false;
+        const latest = trips.reduce((a, b) => a.stopTime > b.stopTime ? a : b);
+        return (new Date() - latest.stopTime) / 1000 / 60 < 120;
+      }).length;
+      document.getElementById('kpi4Label').textContent = 'Vehicles Active Now';
+      document.getElementById('kpi4Value').textContent = `${active}/${total}`;
+      document.getElementById('kpi4Sub').textContent = active === 0
+        ? 'No recent activity'
+        : `${active} vehicle${active !== 1 ? 's' : ''} moving in last 2 hours`;
+    }
+
+    function splitByFuelTruck(trips, role) {
+      const rf01 = trips.filter(t => t.vehicleId === 'RF01' && ZONE_TYPES[t.stopZone]?.role === role).length;
+      const rf02 = trips.filter(t => t.vehicleId === 'RF02' && ZONE_TYPES[t.stopZone]?.role === role).length;
       return `RF01: ${rf01} · RF02: ${rf02}`;
     }
 
-    function makeDeliverySplit(events) {
-      const gulkula = events.filter(e => e.zoneName === 'Gulkula Mine').length;
-      const mineFarm = events.filter(e => e.zoneName === 'Mine Fuel Farm').length;
+    function splitByDeliveryZone(trips) {
+      const gulkula = trips.filter(t => t.stopZone === 'Gulkula Mine').length;
+      const mineFarm = trips.filter(t => t.stopZone === 'Mine Fuel Farm').length;
       return `Gulkula: ${gulkula} · Mine Farm: ${mineFarm}`;
     }
 
-    function renderTrend(elementId, trend) {
-      const el = document.getElementById(elementId);
-      if (!trend || trend.direction === 'flat') {
-        el.className = 'kpi-trend flat';
-        el.textContent = '— no change';
-        return;
-      }
-      const arrow = trend.direction === 'up' ? '▲' : '▼';
-      const labelMap = {
-        daily: 'yesterday',
-        weekly: 'last week',
-        monthly: 'last month'
-      };
-      el.className = `kpi-trend ${trend.direction}`;
-      el.textContent = `${arrow} ${trend.pct}% vs ${labelMap[currentPeriod]}`;
+    function tripsByCategory(trips) {
+      const cats = { fuel: 0, truck: 0, equipment: 0 };
+      trips.forEach(t => { if (cats[t.vehicleSpec?.category] !== undefined) cats[t.vehicleSpec.category]++; });
+      return `Fuel: ${cats.fuel} · Trucks: ${cats.truck} · Equip: ${cats.equipment}`;
     }
 
-    function renderAlerts(events, activeTrucks) {
+    function uniqueVehicles(trips) {
+      return new Set(trips.map(t => t.vehicleId)).size;
+    }
+
+    // ── Alerts ────────────────────────────────────────────────────────────
+    function renderAlerts(trips, filterIds) {
       const bar = document.getElementById('alertsBar');
       const alerts = [];
 
-      // Alert: no activity today during working hours
-      const now = new Date();
-      if (currentPeriod === 'daily' && now.getHours() >= 9 && now.getHours() <= 17 && activeTrucks === 0) {
-        alerts.push({
-          level: 'warning',
-          icon: '⚠️',
-          message: 'No fuel truck activity in the last 2 hours during working hours'
-        });
+      // Fuel-focused alert: no activity during working hours today
+      if (currentPeriod === 'daily') {
+        const now = new Date();
+        const workingHours = now.getHours() >= 9 && now.getHours() <= 17;
+        const fuelIds = filterIds.filter(id => FUEL_IDS.includes(id));
+        if (workingHours && fuelIds.length > 0) {
+          const hasActivity = trips.some(t => {
+            const minsAgo = (now - t.stopTime) / 1000 / 60;
+            return minsAgo < 120 && FUEL_IDS.includes(t.vehicleId);
+          });
+          if (!hasActivity) {
+            alerts.push({
+              level: 'warning', icon: '⚠️',
+              message: 'No fuel truck activity in the last 2 hours during working hours'
+            });
+          }
+        }
       }
 
-      // Alert: truck has been at non-depot zone for > 30 mins
-      // (simplified check - would need duration data for full logic)
-
-      if (alerts.length === 0) {
-        bar.style.display = 'none';
-        return;
+      // RF02 specifically idle?
+      if (filterIds.includes('RF02')) {
+        const rf02Trips = trips.filter(t => t.vehicleId === 'RF02');
+        if (rf02Trips.length === 0) {
+          alerts.push({
+            level: 'info', icon: 'ℹ️',
+            message: `RF02 has no trips in this period — check if the truck is down or in servicing`
+          });
+        }
       }
 
+      if (!alerts.length) { bar.style.display = 'none'; return; }
       bar.style.display = 'block';
-      bar.innerHTML = alerts.map(a => `
-        <div class="alert-bar ${a.level}">
-          <span class="alert-icon">${a.icon}</span>
-          <span>${a.message}</span>
-        </div>`).join('');
+      bar.innerHTML = alerts.map(a =>
+        `<div class="alert-bar ${a.level}"><span class="alert-icon">${a.icon}</span><span>${a.message}</span></div>`
+      ).join('');
     }
 
-    function renderTruckCards(allEvents) {
+    // ── Vehicle cards ─────────────────────────────────────────────────────
+    function renderVehicleCards(enrichedTrips, filterIds) {
       const grid = document.getElementById('truckGrid');
       grid.innerHTML = '';
 
-      const trucksToShow = currentTruck === 'ALL' ? ['RF01', 'RF02'] : [currentTruck];
+      if (filterIds.length === 0) {
+        grid.innerHTML = '<div class="empty-state"><div class="icon">🚛</div><div>No vehicles match current filter</div></div>';
+        return;
+      }
 
-      trucksToShow.forEach(truckId => {
-        const cfg = TRUCK_CONFIG[truckId];
-        const status = getTruckStatus(truckId);
-        const truckEvents = allEvents.filter(e => e.truckId === truckId);
-        const loads = countByRole(truckEvents, 'load');
-        const deliveries = countByRole(truckEvents, 'deliver');
+      filterIds.forEach(vehicleId => {
+        const spec = VEHICLE_CATALOG.find(v => v.id === vehicleId);
+        if (!spec) return;
+        const status = getVehicleStatus(vehicleId, enrichedTrips);
+        const vTrips = enrichedTrips.filter(t => t.vehicleId === vehicleId);
+        const loads = vTrips.filter(t => ZONE_TYPES[t.stopZone]?.role === 'load').length;
+        const deliveries = vTrips.filter(t => ZONE_TYPES[t.stopZone]?.role === 'deliver').length;
+        const distance = vTrips.reduce((s, t) => s + (t.distance || 0), 0);
+        const hours = vTrips.reduce((s, t) => s + (t.drivingMins || 0), 0) / 60;
 
+        const isFuel = spec.category === 'fuel';
         const card = document.createElement('div');
-        card.className = `truck-card ${cfg.class}`;
+        card.className = `truck-card`;
+        card.style.setProperty('--card-accent', spec.color);
         card.innerHTML = `
-          <div class="truck-card-header">
-            <span class="truck-emoji">${cfg.emoji}</span>
+          <div class="truck-card-header" style="border-top-color: ${spec.color}">
+            <span class="truck-emoji">${spec.emoji}</span>
             <div>
-              <div class="truck-name">${truckId} — ${cfg.name}</div>
-              <div class="truck-rego">Fuel delivery</div>
+              <div class="truck-name">${spec.displayName}</div>
+              <div class="truck-rego">${spec.category === 'fuel' ? 'Fuel delivery' : spec.category === 'equipment' ? 'Equipment' : 'Truck'}</div>
             </div>
             <span class="truck-badge ${status.badge}">${status.text}</span>
           </div>
@@ -995,108 +1079,167 @@
             </div>
             <div class="truck-stat-row">
               <span class="truck-stat-label">Last seen</span>
-              <span class="truck-stat-value">${status.lastSeen || '—'}</span>
+              <span class="truck-stat-value">${status.lastSeen}</span>
             </div>
             <div class="truck-stat-row">
-              <span class="truck-stat-label">Loads in period</span>
-              <span class="truck-stat-value" style="color: var(--color-primary)">${loads}</span>
+              <span class="truck-stat-label">Trips in period</span>
+              <span class="truck-stat-value">${vTrips.length}</span>
             </div>
             <div class="truck-stat-row">
-              <span class="truck-stat-label">Deliveries in period</span>
-              <span class="truck-stat-value" style="color: var(--color-positive)">${deliveries}</span>
+              <span class="truck-stat-label">Distance</span>
+              <span class="truck-stat-value">${distance.toFixed(1)} km</span>
             </div>
+            ${isFuel ? `
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Loads / Deliveries</span>
+              <span class="truck-stat-value">
+                <span style="color: var(--color-primary)">${loads}</span>
+                 / 
+                <span style="color: var(--color-positive)">${deliveries}</span>
+              </span>
+            </div>
+            ` : `
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Driving hours</span>
+              <span class="truck-stat-value">${hours.toFixed(1)}h</span>
+            </div>
+            `}
           </div>`;
         grid.appendChild(card);
       });
-
-      if (trucksToShow.length === 0) {
-        grid.innerHTML = '<div class="empty-state"><div class="icon">🚛</div><div>No trucks match current filter</div></div>';
-      }
     }
 
-    function renderCharts(events) {
-      // ── Chart 1: Loads by truck (bar) ──
-      const loadsByTruck = {
-        RF01: events.filter(e => e.truckId === 'RF01' && ZONE_TYPES[e.zoneName]?.role === 'load').length,
-        RF02: events.filter(e => e.truckId === 'RF02' && ZONE_TYPES[e.zoneName]?.role === 'load').length
-      };
-      if (loadsChart) loadsChart.destroy();
-      loadsChart = new Chart(document.getElementById('loadsChart'), {
+    // ── Charts ────────────────────────────────────────────────────────────
+    function renderCharts(filtered, fuelFocus, filterIds) {
+      // Chart 1 — Trips by vehicle (bar)
+      const vehicleLabels = filterIds.map(id => {
+        const spec = VEHICLE_CATALOG.find(v => v.id === id);
+        return spec?.id || id;
+      });
+      const vehicleColors = filterIds.map(id => {
+        const spec = VEHICLE_CATALOG.find(v => v.id === id);
+        return spec?.color || '#999';
+      });
+      const tripCounts = filterIds.map(id => filtered.filter(t => t.vehicleId === id).length);
+
+      document.getElementById('chart1Title').textContent = fuelFocus ? 'Loads by Truck' : 'Trips by Vehicle';
+      document.getElementById('chart1Sub').textContent = fuelFocus
+        ? 'Gantry visits in the selected period'
+        : 'Total trips per vehicle in period';
+
+      let bar1Data = tripCounts;
+      if (fuelFocus) {
+        // Recompute as loads (Gantry visits) specifically
+        bar1Data = filterIds.map(id =>
+          filtered.filter(t => t.vehicleId === id && ZONE_TYPES[t.stopZone]?.role === 'load').length
+        );
+      }
+
+      if (kpi1Chart) kpi1Chart.destroy();
+      kpi1Chart = new Chart(document.getElementById('loadsChart'), {
         type: 'bar',
         data: {
-          labels: ['RF01 Kenworth', 'RF02 SAR Fuel'],
-          datasets: [{
-            data: [loadsByTruck.RF01, loadsByTruck.RF02],
-            backgroundColor: [TRUCK_CONFIG.RF01.color, TRUCK_CONFIG.RF02.color],
-            borderRadius: 4
-          }]
+          labels: vehicleLabels,
+          datasets: [{ data: bar1Data, backgroundColor: vehicleColors, borderRadius: 4 }]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
-          plugins: { legend: { display: false }, datalabels: { display: true, color: '#fff', font: { weight: 'bold' }, anchor: 'end', align: 'start', offset: 4 } },
+          plugins: {
+            legend: { display: false },
+            datalabels: {
+              display: true, color: '#fff', font: { weight: 'bold' },
+              anchor: 'end', align: 'start', offset: 4,
+              formatter: v => v > 0 ? v : ''
+            }
+          },
           scales: { y: { beginAtZero: true, ticks: { stepSize: 1 } } }
         },
         plugins: [ChartDataLabels]
       });
 
-      // ── Chart 2: Delivery split (donut) ──
-      const gulkula = events.filter(e => e.zoneName === 'Gulkula Mine').length;
-      const mineFarm = events.filter(e => e.zoneName === 'Mine Fuel Farm').length;
-      const other = events.filter(e => ZONE_TYPES[e.zoneName]?.role === 'deliver' &&
-        e.zoneName !== 'Gulkula Mine' && e.zoneName !== 'Mine Fuel Farm').length;
+      // Chart 2 — Delivery split (fuel focus) OR Distance by vehicle (fleet focus)
+      if (kpi2Chart) kpi2Chart.destroy();
+      if (fuelFocus) {
+        const gulkula = filtered.filter(t => t.stopZone === 'Gulkula Mine').length;
+        const mineFarm = filtered.filter(t => t.stopZone === 'Mine Fuel Farm').length;
+        const yirrkala = filtered.filter(t => t.stopZone === 'Yirrkala Store').length;
+        const hasData = (gulkula + mineFarm + yirrkala) > 0;
 
-      if (deliveryChart) deliveryChart.destroy();
-      deliveryChart = new Chart(document.getElementById('deliveryChart'), {
-        type: 'doughnut',
-        data: {
-          labels: (gulkula + mineFarm + other) > 0
-            ? ['Gulkula Mine', 'Mine Fuel Farm', 'Other'].filter((_, i) => [gulkula, mineFarm, other][i] > 0)
-            : ['No deliveries'],
-          datasets: [{
-            data: (gulkula + mineFarm + other) > 0
-              ? [gulkula, mineFarm, other].filter(v => v > 0)
-              : [1],
-            backgroundColor: (gulkula + mineFarm + other) > 0
-              ? [ZONE_TYPES['Gulkula Mine'].color, ZONE_TYPES['Mine Fuel Farm'].color, '#95a5a6'].filter((_, i) => [gulkula, mineFarm, other][i] > 0)
-              : ['#E0E0E0'],
-            borderWidth: 2, borderColor: '#fff'
-          }]
-        },
-        options: {
-          responsive: true, maintainAspectRatio: false,
-          plugins: {
-            legend: { position: 'right', labels: { font: { size: 11 } } },
-            datalabels: {
-              color: '#fff',
-              font: { weight: 'bold', size: 11 },
-              formatter: (value, ctx) => {
-                const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
-                const pct = Math.round(value / total * 100);
-                return pct >= 5 ? `${pct}%` : '';
+        document.getElementById('chart2Title').textContent = 'Delivery Split';
+        document.getElementById('chart2Sub').textContent = 'Where the fuel went';
+
+        kpi2Chart = new Chart(document.getElementById('deliveryChart'), {
+          type: 'doughnut',
+          data: {
+            labels: hasData
+              ? ['Gulkula Mine', 'Mine Fuel Farm', 'Yirrkala Store'].filter((_, i) => [gulkula, mineFarm, yirrkala][i] > 0)
+              : ['No deliveries'],
+            datasets: [{
+              data: hasData ? [gulkula, mineFarm, yirrkala].filter(v => v > 0) : [1],
+              backgroundColor: hasData
+                ? ['#C0392B', '#8E44AD', '#607D8B'].filter((_, i) => [gulkula, mineFarm, yirrkala][i] > 0)
+                : ['#E0E0E0'],
+              borderWidth: 2, borderColor: '#fff'
+            }]
+          },
+          options: {
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { position: 'right', labels: { font: { size: 11 } } },
+              datalabels: {
+                color: '#fff', font: { weight: 'bold', size: 11 },
+                formatter: (v, ctx) => {
+                  const total = ctx.dataset.data.reduce((a, b) => a + b, 0);
+                  const pct = Math.round(v / total * 100);
+                  return pct >= 5 ? `${pct}%` : '';
+                }
               }
             }
-          }
-        },
-        plugins: [ChartDataLabels]
-      });
+          },
+          plugins: [ChartDataLabels]
+        });
+      } else {
+        // Distance by vehicle (horizontal bars)
+        const distances = filterIds.map(id =>
+          filtered.filter(t => t.vehicleId === id).reduce((s, t) => s + (t.distance || 0), 0)
+        );
+        document.getElementById('chart2Title').textContent = 'Distance by Vehicle';
+        document.getElementById('chart2Sub').textContent = 'Kilometres driven';
 
-      // ── Chart 3: Activity by hour (bar) ──
+        kpi2Chart = new Chart(document.getElementById('deliveryChart'), {
+          type: 'bar',
+          data: {
+            labels: vehicleLabels,
+            datasets: [{ data: distances.map(d => +d.toFixed(1)), backgroundColor: vehicleColors, borderRadius: 4 }]
+          },
+          options: {
+            indexAxis: 'y',
+            responsive: true, maintainAspectRatio: false,
+            plugins: {
+              legend: { display: false },
+              datalabels: {
+                display: true, color: '#333', font: { size: 10, weight: 'bold' },
+                anchor: 'end', align: 'end', formatter: v => v > 0 ? `${v}km` : ''
+              }
+            },
+            scales: { x: { beginAtZero: true } }
+          },
+          plugins: [ChartDataLabels]
+        });
+      }
+
+      // Chart 3 — Activity by hour (always)
       const hourly = new Array(24).fill(0);
-      events.forEach(e => {
-        const h = e.startTime.getHours();
-        hourly[h]++;
-      });
+      filtered.forEach(t => { const h = t.startTime.getHours(); hourly[h]++; });
+      document.getElementById('chart3Title').textContent = 'Activity by Hour';
+      document.getElementById('chart3Sub').textContent = 'Trip starts by hour of day';
 
-      if (hourlyChart) hourlyChart.destroy();
-      hourlyChart = new Chart(document.getElementById('hourlyChart'), {
+      if (kpi3Chart) kpi3Chart.destroy();
+      kpi3Chart = new Chart(document.getElementById('hourlyChart'), {
         type: 'bar',
         data: {
-          labels: Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2,'0')}`),
-          datasets: [{
-            data: hourly,
-            backgroundColor: '#0078D4',
-            borderRadius: 2
-          }]
+          labels: Array.from({ length: 24 }, (_, i) => `${i.toString().padStart(2, '0')}`),
+          datasets: [{ data: hourly, backgroundColor: '#0078D4', borderRadius: 2 }]
         },
         options: {
           responsive: true, maintainAspectRatio: false,
@@ -1111,59 +1254,48 @@
 
     // ── Chat ──────────────────────────────────────────────────────
     function toggleChat() {
-      const drawer = document.getElementById('chatDrawer');
-      const content = document.getElementById('mainContent');
-      drawer.classList.toggle('open');
-      content.classList.toggle('chat-open');
+      document.getElementById('chatDrawer').classList.toggle('open');
+      document.getElementById('mainContent').classList.toggle('chat-open');
     }
 
     async function sendChat() {
       const input = document.getElementById('chatInput');
       const msg = input.value.trim();
       if (!msg) return;
-
       addChatMessage(msg, 'user');
       chatHistory.push({ role: 'user', content: msg });
       input.value = '';
-
       document.getElementById('typingIndicator').style.display = 'flex';
       document.getElementById('chatSend').disabled = true;
 
-      // Build context from current dashboard data
-      const enriched = enrichEvents(dashData.zoneEvents);
-      const filtered = filterByTruck(enriched);
+      const enriched = enrichTrips(dashData.trips);
+      const filtered = filterTripsByCurrentSelection(enriched);
       const context = {
         period: currentPeriod,
-        truck: currentTruck,
+        filter: currentFilter,
         totals: {
+          trips: filtered.length,
           loads: countByRole(filtered, 'load'),
           deliveries: countByRole(filtered, 'deliver'),
-          loadsByTruck: {
-            RF01: enriched.filter(e => e.truckId === 'RF01' && ZONE_TYPES[e.zoneName]?.role === 'load').length,
-            RF02: enriched.filter(e => e.truckId === 'RF02' && ZONE_TYPES[e.zoneName]?.role === 'load').length
-          }
+          distance: totalDistance(filtered).toFixed(1),
+          hours: (totalDrivingMins(filtered) / 60).toFixed(1)
         },
-        recentEvents: filtered.slice(-10).map(e => ({
-          truck: e.truckId,
-          zone: e.zoneName,
-          role: ZONE_TYPES[e.zoneName]?.role,
-          time: e.startTime.toISOString()
+        recentTrips: filtered.slice(-10).map(t => ({
+          vehicle: t.vehicleId, stopZone: t.stopZone,
+          start: t.startTime.toISOString(), distance: t.distance
         }))
       };
 
       try {
         const response = await fetch(`${API}/api/ai-chat`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ message: msg, context, history: chatHistory.slice(-6) })
         });
-
         document.getElementById('typingIndicator').style.display = 'none';
         document.getElementById('chatSend').disabled = false;
-
         if (!response.ok) {
           if (response.status === 404) {
-            addChatMessage(`AI chat is not yet wired up on the server. The dashboard data is ready — we just need to add an /api/ai-chat endpoint to server.js to enable chat. For now, the dashboard updates still work!`, 'assistant');
+            addChatMessage(`AI chat is not yet wired up on the server. The dashboard data is ready — we just need to add an /api/ai-chat endpoint to server.js to enable chat.`, 'assistant');
             return;
           }
           throw new Error(`Server ${response.status}`);
@@ -1172,7 +1304,6 @@
         const reply = data.response || 'Sorry, no response received.';
         addChatMessage(reply, 'assistant');
         chatHistory.push({ role: 'assistant', content: reply });
-
       } catch (err) {
         document.getElementById('typingIndicator').style.display = 'none';
         document.getElementById('chatSend').disabled = false;
@@ -1210,24 +1341,14 @@
     }
 
     // ── Init ──────────────────────────────────────────────────────
-    // Apply saved period on load
     document.querySelectorAll('.period-btn').forEach(btn => {
       btn.classList.toggle('active', btn.dataset.period === currentPeriod);
     });
-    const initLabels = {
-      daily:   'Today',
-      weekly:  'This Week (last 7 days)',
-      monthly: 'This Month'
-    };
-    document.getElementById('periodLabel').textContent = initLabels[currentPeriod];
-    const initKpiLabels = {
-      daily: 'Today', weekly: 'This Week', monthly: 'This Month'
-    };
-    document.getElementById('kpiLoadsLabel').textContent = `Loads ${initKpiLabels[currentPeriod]}`;
-    document.getElementById('kpiDeliveriesLabel').textContent = `Deliveries ${initKpiLabels[currentPeriod]}`;
+    document.getElementById('periodLabel').textContent =
+      ({ daily: 'Today', weekly: 'This Week (last 7 days)', monthly: 'This Month' })[currentPeriod];
 
     loadDashboard();
-    setInterval(loadDashboard, 60000); // auto-refresh every minute
+    setInterval(loadDashboard, 60000);
   </script>
 </body>
 </html>
