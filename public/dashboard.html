@@ -13,6 +13,7 @@
       --color-warning: #FFB900;
       --color-primary: #0078D4;
       --color-primary-dark: #106EBE;
+      --color-purple: #9B59B6;
       --color-text-primary: #201F1E;
       --color-text-secondary: #605E5C;
       --color-text-muted: #8A8886;
@@ -206,32 +207,34 @@
       font-size: 12px; color: var(--color-text-muted);
     }
 
-    /* ── KPI Row ── */
+    /* ── KPI Row (now 5 cards across) ── */
     .kpi-row {
-      display: grid; grid-template-columns: repeat(4, 1fr);
+      display: grid; grid-template-columns: repeat(5, 1fr);
       gap: 16px; margin-bottom: 20px;
     }
 
     .kpi-card {
       background: var(--bg-card); border-radius: 8px;
-      padding: 20px; box-shadow: var(--shadow-card);
+      padding: 18px 20px; box-shadow: var(--shadow-card);
       border-left: 4px solid transparent; transition: box-shadow 0.2s;
+      min-width: 0;
     }
     .kpi-card:hover { box-shadow: var(--shadow-card-hover); }
     .kpi-card.blue { border-left-color: var(--color-primary); }
     .kpi-card.green { border-left-color: var(--color-positive); }
     .kpi-card.amber { border-left-color: var(--color-warning); }
     .kpi-card.red { border-left-color: var(--color-negative); }
+    .kpi-card.purple { border-left-color: var(--color-purple); }
 
     .kpi-label {
-      font-size: 12px; font-weight: 600; color: var(--color-text-muted);
+      font-size: 11px; font-weight: 600; color: var(--color-text-muted);
       text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;
     }
     .kpi-value {
-      font-size: 36px; font-weight: 700; color: var(--color-text-primary);
+      font-size: 32px; font-weight: 700; color: var(--color-text-primary);
       line-height: 1; margin-bottom: 6px;
     }
-    .kpi-sub { font-size: 12px; color: var(--color-text-secondary); }
+    .kpi-sub { font-size: 11px; color: var(--color-text-secondary); }
     .kpi-trend {
       font-size: 11px; margin-top: 4px; font-weight: 600;
       display: inline-flex; align-items: center; gap: 3px;
@@ -244,14 +247,13 @@
     .truck-grid {
       display: grid;
       gap: 16px; margin-bottom: 20px;
-      /* grid-template-columns set dynamically via JS based on selected count */
     }
 
     .truck-card {
       background: var(--bg-card); border-radius: 8px;
       box-shadow: var(--shadow-card); overflow: hidden;
       transition: box-shadow 0.2s;
-      min-width: 0; /* allow grid cells to shrink below content width */
+      min-width: 0;
     }
     .truck-card:hover { box-shadow: var(--shadow-card-hover); }
 
@@ -298,6 +300,17 @@
       color: var(--color-text-muted); font-weight: 400; font-size: 11px;
       display: block; margin-top: 2px;
     }
+
+    /* Idle pill (color-coded efficiency badge) */
+    .idle-pill {
+      display: inline-block; padding: 2px 8px;
+      border-radius: 10px; font-size: 12px; font-weight: 700;
+      color: white;
+    }
+    .idle-pill.green { background: var(--color-positive); }
+    .idle-pill.amber { background: var(--color-warning); color: #5A4500; }
+    .idle-pill.red   { background: var(--color-negative); }
+    .idle-pill.muted { background: #E0E0E0; color: var(--color-text-muted); }
 
     /* ── Alerts Bar ── */
     .alert-bar {
@@ -435,21 +448,18 @@
       </div>
     </div>
     <div class="header-right">
-      <!-- Period Toggle (now in header) -->
       <div class="period-toggle">
         <button class="period-btn active" data-period="daily" onclick="selectPeriod('daily')">Daily</button>
         <button class="period-btn" data-period="weekly" onclick="selectPeriod('weekly')">Weekly</button>
         <button class="period-btn" data-period="monthly" onclick="selectPeriod('monthly')">Monthly</button>
       </div>
 
-      <!-- Vehicle Picker (MULTI-SELECT with toggle checkboxes) -->
       <div class="truck-picker" id="truckPicker">
         <button class="truck-picker-btn" onclick="toggleTruckPicker()">
           <span id="truckPickerLabel">🚛 All Vehicles</span>
           <span class="arrow">▼</span>
         </button>
         <div class="truck-picker-dropdown" id="truckDropdown">
-          <!-- Presets: click-and-close quick actions -->
           <div class="truck-option preset" data-preset="ALL" onclick="selectAllVehicles()">
             🚛 All Vehicles
           </div>
@@ -457,7 +467,6 @@
             ⛽ Fuel Trucks Only
           </div>
           <div class="truck-option-divider"></div>
-          <!-- Individual toggles: click keeps dropdown open -->
           <div class="truck-option individual" data-id="RF01" onclick="event.stopPropagation(); toggleVehicle('RF01')">
             <span class="check-indicator"></span>🔴 RF01 Kenworth T609
           </div>
@@ -492,13 +501,12 @@
   <div class="main">
     <div class="content" id="mainContent">
 
-      <!-- Refresh bar -->
       <div class="refresh-bar">
         <span id="lastUpdated">Loading data...</span>
         <span id="sessionStatus"></span>
       </div>
 
-      <!-- KPI Row -->
+      <!-- KPI Row — now 5 cards (last is Idle %) -->
       <div class="kpi-row">
         <div class="kpi-card blue">
           <div class="kpi-label" id="kpi1Label">Loads Today</div>
@@ -523,17 +531,20 @@
           <div class="kpi-value" id="kpi4Value">—</div>
           <div class="kpi-sub" id="kpi4Sub">Checking positions...</div>
         </div>
+        <div class="kpi-card purple">
+          <div class="kpi-label" id="kpi5Label">Idle Time</div>
+          <div class="kpi-value" id="kpi5Value">—</div>
+          <div class="kpi-sub" id="kpi5Sub">of engine time</div>
+          <div class="kpi-trend" id="kpi5Trend"></div>
+        </div>
       </div>
 
-      <!-- Alerts Bar -->
       <div id="alertsBar" style="display:none; margin-bottom:16px;"></div>
 
-      <!-- Vehicle cards (dynamic columns based on selected count) -->
       <div class="truck-grid" id="truckGrid">
         <!-- Populated by JS -->
       </div>
 
-      <!-- Charts — 3 equal columns -->
       <div class="chart-row" id="chartRow">
         <div class="chart-card">
           <div class="chart-title" id="chart1Title">Loads by Truck</div>
@@ -599,7 +610,6 @@
     const API = window.location.origin;
     Chart.defaults.plugins.datalabels = { display: false };
 
-    // ── Vehicle Catalog ────────────────────────────────────────────────────
     const VEHICLE_CATALOG = [
       { id: 'RF01',   matches: ['RF01', 'T609'],         displayName: 'RF01 Kenworth T609',   emoji: '🔴', category: 'fuel',      color: '#C0392B' },
       { id: 'RF02',   matches: ['RF02', 'T408'],         displayName: 'RF02 SAR Fuel T408',   emoji: '🔵', category: 'fuel',      color: '#2980B9' },
@@ -628,9 +638,13 @@
       wait:    '#95a5a6'
     };
 
+    // Idle % thresholds (calibrate these with Gavin over time)
+    const IDLE_GREEN_MAX = 40; // <40% idle = green (very active)
+    const IDLE_AMBER_MAX = 60; // 40-60% = amber (normal for delivery work)
+    // >60% = red (high — could indicate excessive waiting)
+
     // ── State ──────────────────────────────────────────────────────────────
     let currentPeriod = localStorage.getItem('racFuelPeriod') || 'daily';
-    // Multi-select: Set of vehicle IDs currently checked. Default = all 7.
     let currentSelection = new Set(
       JSON.parse(localStorage.getItem('racFuelSelection') || 'null') || ALL_VEHICLE_IDS
     );
@@ -679,15 +693,11 @@
     }
 
     function toggleVehicle(vehicleId) {
-      if (currentSelection.has(vehicleId)) {
-        currentSelection.delete(vehicleId);
-      } else {
-        currentSelection.add(vehicleId);
-      }
+      if (currentSelection.has(vehicleId)) currentSelection.delete(vehicleId);
+      else currentSelection.add(vehicleId);
       persistSelection();
       updateSelectorUI();
       renderDashboard();
-      // NOTE: dropdown stays open intentionally for multi-toggle
     }
 
     function selectAllVehicles() {
@@ -718,27 +728,20 @@
     function updateSelectorUI() {
       const size = currentSelection.size;
       let label;
-      if (size === 0) {
-        label = 'No vehicles selected';
-      } else if (isAllPreset()) {
-        label = '🚛 All Vehicles';
-      } else if (isFuelOnlyPreset()) {
-        label = '⛽ Fuel Trucks Only';
-      } else if (size === 1) {
+      if (size === 0) label = 'No vehicles selected';
+      else if (isAllPreset()) label = '🚛 All Vehicles';
+      else if (isFuelOnlyPreset()) label = '⛽ Fuel Trucks Only';
+      else if (size === 1) {
         const id = [...currentSelection][0];
         const spec = VEHICLE_CATALOG.find(v => v.id === id);
         label = `${spec.emoji} ${spec.displayName}`;
-      } else {
-        label = `${size} of ${ALL_VEHICLE_IDS.length} vehicles`;
-      }
+      } else label = `${size} of ${ALL_VEHICLE_IDS.length} vehicles`;
       document.getElementById('truckPickerLabel').textContent = label;
 
-      // Individual vehicle checkmarks
       document.querySelectorAll('.truck-option.individual').forEach(opt => {
         opt.classList.toggle('selected', currentSelection.has(opt.dataset.id));
       });
 
-      // Preset highlight
       document.querySelectorAll('.truck-option.preset').forEach(opt => {
         const preset = opt.dataset.preset;
         let active = false;
@@ -790,7 +793,6 @@
                category: 'unknown', color: '#607D8B', fleetName: vehicle.name };
     }
 
-    // Vehicle IDs in current selection, in canonical catalog order
     function vehicleIdsInFilter() {
       return ALL_VEHICLE_IDS.filter(id => currentSelection.has(id));
     }
@@ -930,6 +932,26 @@
     function totalIdlingMins(trips) { return trips.reduce((s, t) => s + (t.idlingMins || 0), 0); }
     function totalEngineMins(trips) { return totalDrivingMins(trips) + totalIdlingMins(trips); }
 
+    // ── Efficiency: Idle % helpers ─────────────────────────────────────
+    // Returns null when there's no engine time to compute against.
+    // Otherwise returns a percentage 0-100.
+    function calcIdlePct(trips) {
+      const drive = totalDrivingMins(trips);
+      const idle = totalIdlingMins(trips);
+      const total = drive + idle;
+      if (total === 0) return null;
+      return (idle / total) * 100;
+    }
+
+    // Color band for idle %. Lower idle = better (more time moving).
+    // Returns one of: 'green', 'amber', 'red', 'muted'
+    function idleColorClass(pct) {
+      if (pct == null) return 'muted';
+      if (pct < IDLE_GREEN_MAX) return 'green';
+      if (pct < IDLE_AMBER_MAX) return 'amber';
+      return 'red';
+    }
+
     function calcTrend(current, previous) {
       if (previous === 0 && current === 0) return { direction: 'flat', pct: 0 };
       if (previous === 0) return { direction: 'up', pct: 100 };
@@ -989,13 +1011,13 @@
       const filteredPrev = filterTripsByCurrentSelection(enrichedPrev);
 
       const filterIds = vehicleIdsInFilter();
-      // Fuel focus = current selection is non-empty and ALL selected vehicles are fuel
       const fuelFocus = filterIds.length > 0 && filterIds.every(id => FUEL_IDS.includes(id));
 
       if (fuelFocus) renderFuelKPIs(filtered, filteredPrev);
       else renderFleetKPIs(filtered, filteredPrev);
 
       renderActiveTrucksKPI(enrichedCurrent, filterIds);
+      renderIdleKPI(filtered, filteredPrev);  // 5th KPI — universal Idle %
       renderVehicleCards(enrichedCurrent, filterIds);
       renderCharts(filtered, fuelFocus, filterIds);
       renderAlerts(filtered, filterIds);
@@ -1008,6 +1030,10 @@
       const deliveriesPrev = countByRole(prevTrips, 'deliver');
       const turn = calcAvgTurnaround(trips);
       const turnPrev = calcAvgTurnaround(prevTrips);
+
+      // Deliveries per engine hour (productivity rate) — fuel-specific bonus stat
+      const engineHrs = totalEngineMins(trips) / 60;
+      const delPerHr = engineHrs > 0 ? (deliveries / engineHrs) : null;
 
       const periodLabel = ({ daily: 'Today', weekly: 'This Week', monthly: 'This Month' })[currentPeriod];
       document.getElementById('kpi1Label').textContent = `Loads ${periodLabel}`;
@@ -1022,9 +1048,12 @@
 
       document.getElementById('kpi3Label').textContent = 'Avg Turnaround';
       document.getElementById('kpi3Value').textContent = turn ? `${turn.avgMins}m` : '—';
-      document.getElementById('kpi3Sub').textContent = turn
-        ? `${turn.sampleSize} load→deliver cycles`
-        : 'no complete cycles';
+      // Sub now includes deliveries-per-engine-hour rate when available
+      let turnSub = turn ? `${turn.sampleSize} load→deliver cycles` : 'no complete cycles';
+      if (delPerHr != null && deliveries > 0) {
+        turnSub += ` · ${delPerHr.toFixed(2)} del/hr`;
+      }
+      document.getElementById('kpi3Sub').textContent = turnSub;
       if (turn && turnPrev) renderTrend('kpi3Trend', calcTrend(turn.avgMins, turnPrev.avgMins), true);
       else document.getElementById('kpi3Trend').textContent = '';
     }
@@ -1067,6 +1096,48 @@
       document.getElementById('kpi4Sub').textContent = total === 0
         ? 'No vehicles selected'
         : (active === 0 ? 'No recent activity' : `${active} vehicle${active !== 1 ? 's' : ''} moving in last 2 hours`);
+    }
+
+    // ── 5th KPI: Idle Time % (universal efficiency metric) ─────────────
+    // Uses inverted trend — LOWER idle = better, so a downward arrow
+    // shows green and an upward arrow shows red.
+    function renderIdleKPI(trips, prevTrips) {
+      const idlePct = calcIdlePct(trips);
+      const idlePrev = calcIdlePct(prevTrips);
+      const idleHrs = totalIdlingMins(trips) / 60;
+      const engineHrs = totalEngineMins(trips) / 60;
+
+      document.getElementById('kpi5Label').textContent = 'Idle Time';
+
+      const valueEl = document.getElementById('kpi5Value');
+      const subEl = document.getElementById('kpi5Sub');
+      const trendEl = document.getElementById('kpi5Trend');
+
+      if (idlePct == null) {
+        valueEl.textContent = '—';
+        subEl.textContent = 'no engine time recorded';
+        trendEl.textContent = '';
+        trendEl.className = 'kpi-trend flat';
+        return;
+      }
+
+      const colorMap = {
+        green: 'var(--color-positive)',
+        amber: 'var(--color-warning)',
+        red: 'var(--color-negative)',
+        muted: 'var(--color-text-muted)'
+      };
+      const colorClass = idleColorClass(idlePct);
+      valueEl.innerHTML = `<span style="color:${colorMap[colorClass]}">${idlePct.toFixed(0)}%</span>`;
+      subEl.textContent = `${idleHrs.toFixed(1)}h idle of ${engineHrs.toFixed(1)}h engine`;
+
+      if (idlePrev != null) {
+        // Inverted trend: lower idle is better
+        renderTrend('kpi5Trend', calcTrend(Math.round(idlePct), Math.round(idlePrev)), true);
+      } else {
+        trendEl.textContent = '';
+        trendEl.className = 'kpi-trend flat';
+      }
     }
 
     function splitByFuelTruck(trips, role) {
@@ -1142,8 +1213,6 @@
         return;
       }
 
-      // Dynamic columns: exactly N columns for N selected (capped at 7)
-      // → 1-6 selected = 1 row, 7 selected = 1 row (tight but fits)
       const cols = Math.min(filterIds.length, 7);
       grid.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
 
@@ -1160,6 +1229,10 @@
         const drivingHrs = drivingMins / 60;
         const idlingHrs = idlingMins / 60;
         const engineHrs = drivingHrs + idlingHrs;
+
+        // Per-vehicle idle % — same metric as KPI, just scoped to one vehicle
+        const vIdlePct = calcIdlePct(vTrips);
+        const vIdleClass = idleColorClass(vIdlePct);
 
         const isFuel = spec.category === 'fuel';
         const card = document.createElement('div');
@@ -1196,6 +1269,12 @@
               <span class="truck-stat-value">
                 ${engineHrs.toFixed(1)}h
                 <span class="truck-stat-sub">${drivingHrs.toFixed(1)}h drive · ${idlingHrs.toFixed(1)}h idle</span>
+              </span>
+            </div>
+            <div class="truck-stat-row">
+              <span class="truck-stat-label">Idle</span>
+              <span class="truck-stat-value">
+                <span class="idle-pill ${vIdleClass}">${vIdlePct == null ? '—' : vIdlePct.toFixed(0) + '%'}</span>
               </span>
             </div>
             ${isFuel ? `
@@ -1412,6 +1491,7 @@
 
       const enriched = enrichTrips(dashData.trips);
       const filtered = filterTripsByCurrentSelection(enriched);
+      const idlePct = calcIdlePct(filtered);
       const context = {
         period: currentPeriod,
         selection: [...currentSelection],
@@ -1422,7 +1502,8 @@
           distance: totalDistance(filtered).toFixed(1),
           drivingHours: (totalDrivingMins(filtered) / 60).toFixed(1),
           idlingHours: (totalIdlingMins(filtered) / 60).toFixed(1),
-          engineHours: (totalEngineMins(filtered) / 60).toFixed(1)
+          engineHours: (totalEngineMins(filtered) / 60).toFixed(1),
+          idlePct: idlePct == null ? null : idlePct.toFixed(1)
         },
         recentTrips: filtered.slice(-10).map(t => ({
           vehicle: t.vehicleId, stopZone: t.stopZone,
