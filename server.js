@@ -9,7 +9,8 @@ app.use(express.json());
 app.use(express.static('public'));
 
 const PORT = process.env.PORT || 3000;
-const FLEETCOMPLETE_API = 'https://api.fleetcomplete.com';
+const GEOTAB_SERVER = 'fleetcomplete.geotab.com';
+const GEOTAB_DATABASE = 'rirratjingu_aboriginal_corporation';
 const FLEETCOMPLETE_USERNAME = process.env.FLEETCOMPLETE_USERNAME;
 const FLEETCOMPLETE_PASSWORD = process.env.FLEETCOMPLETE_PASSWORD;
 const DATABASE_URL = process.env.DATABASE_URL;
@@ -23,12 +24,11 @@ if (!FLEETCOMPLETE_USERNAME || !FLEETCOMPLETE_PASSWORD) {
   process.exit(1);
 }
 
-// Session state (in-memory for now, will persist to PostgreSQL)
+// Session state
 let sessionState = {
-  database: null,
+  database: GEOTAB_DATABASE,
   username: FLEETCOMPLETE_USERNAME,
-  sessionCookie: null,
-  userId: null,
+  credentials: null,
   authenticatedAt: null,
   expiresAt: null,
   lastRefresh: null,
@@ -36,16 +36,20 @@ let sessionState = {
   status: 'initializing',
 };
 
-// ── FleetComplete Authentication ──────────────────────────────────────────────
-async function authenticateFleetComplete() {
-  console.log('Authenticating to FleetComplete...');
+// ── Geotab/FleetComplete Authentication ──────────────────────────────────────
+async function authenticateGeotab() {
+  console.log('Authenticating to FleetComplete (Geotab)...');
   try {
-    const response = await fetch(`${FLEETCOMPLETE_API}/seeme/Api/SignOn/LogOn`, {
+    const response = await fetch(`https://${GEOTAB_SERVER}/apiv1`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: FLEETCOMPLETE_USERNAME,
-        password: FLEETCOMPLETE_PASSWORD,
+        method: 'Authenticate',
+        params: {
+          userName: FLEETCOMPLETE_USERNAME,
+          password: FLEETCOMPLETE_PASSWORD,
+          database: GEOTAB_DATABASE
+        }
       }),
     });
 
@@ -56,12 +60,16 @@ async function authenticateFleetComplete() {
 
     const data = await response.json();
     
-    // Extract session cookie from Set-Cookie header
-    const cookies = response.headers.get('set-cookie');
-    
-    sessionState.database = data.database || data.databaseName || 'rirratjingu_aboriginal_corporation';
-    sessionState.sessionCookie = cookies;
-    sessionState.userId = data.userId;
+    if (data.error) {
+      throw new Error(`Geotab API error: ${JSON.stringify(data.error)}`);
+    }
+
+    if (!data.result || !data.result.credentials) {
+      throw new Error('No credentials returned from Geotab API');
+    }
+
+    sessionState.credentials = data.result.credentials;
+    sessionState.database = data.result.credentials.database || GEOTAB_DATABASE;
     sessionState.authenticatedAt = new Date().toISOString();
     sessionState.expiresAt = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(); // 14 days
     sessionState.lastRefresh = new Date().toISOString();
@@ -103,8 +111,8 @@ async function saveSessionToDB() {
     `, [
       sessionState.database,
       sessionState.username,
-      sessionState.sessionCookie,
-      sessionState.userId,
+      JSON.stringify(sessionState.credentials),
+      sessionState.credentials?.userName || FLEETCOMPLETE_USERNAME,
       sessionState.authenticatedAt,
       sessionState.expiresAt,
       new Date().toISOString(),
@@ -125,7 +133,7 @@ async function loadSessionFromDB() {
       WHERE database_name = $1 
       ORDER BY authenticated_at DESC 
       LIMIT 1
-    `, [sessionState.database || 'rirratjingu_aboriginal_corporation']);
+    `, [GEOTAB_DATABASE]);
 
     if (result.rows.length > 0) {
       const session = result.rows[0];
@@ -135,8 +143,7 @@ async function loadSessionFromDB() {
       // Check if session is still valid (expires in more than 1 day)
       if (expiresAt > new Date(now.getTime() + 24 * 60 * 60 * 1000)) {
         sessionState.database = session.database_name;
-        sessionState.sessionCookie = session.session_cookie;
-        sessionState.userId = session.user_id;
+        sessionState.credentials = JSON.parse(session.session_cookie);
         sessionState.authenticatedAt = session.authenticated_at;
         sessionState.expiresAt = session.expires_at;
         sessionState.lastRefresh = session.last_verified;
@@ -159,36 +166,39 @@ function startAutoRefresh() {
     
     if (expiresAt < sevenDaysFromNow) {
       console.log('Session expiring soon - refreshing...');
-      await authenticateFleetComplete();
+      await authenticateGeotab();
     }
   }, 6 * 60 * 60 * 1000); // Check every 6 hours
 }
 
-function getAuthHeaders() {
-  return {
-    'Cookie': sessionState.sessionCookie,
-    'Accept': 'application/json',
-    'Content-Type': 'application/json',
-  };
-}
+async function geotabCall(method, params = {}) {
+  if (!sessionState.credentials) {
+    throw new Error('Not authenticated to Geotab');
+  }
 
-async function fleetCompleteGet(path) {
-  const response = await fetch(`${FLEETCOMPLETE_API}${path}`, {
-    method: 'GET',
-    headers: getAuthHeaders(),
-  });
-  if (!response.ok) throw new Error(`FleetComplete API ${response.status}: ${await response.text()}`);
-  return response.json();
-}
-
-async function fleetCompletePost(path, body = {}) {
-  const response = await fetch(`${FLEETCOMPLETE_API}${path}`, {
+  const response = await fetch(`https://${GEOTAB_SERVER}/apiv1`, {
     method: 'POST',
-    headers: getAuthHeaders(),
-    body: JSON.stringify(body),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      method,
+      params: {
+        credentials: sessionState.credentials,
+        ...params
+      }
+    }),
   });
-  if (!response.ok) throw new Error(`FleetComplete API ${response.status}: ${await response.text()}`);
-  return response.json();
+
+  if (!response.ok) {
+    throw new Error(`Geotab API ${response.status}: ${await response.text()}`);
+  }
+
+  const data = await response.json();
+  
+  if (data.error) {
+    throw new Error(`Geotab API error: ${JSON.stringify(data.error)}`);
+  }
+
+  return data.result;
 }
 
 // ── Routes ────────────────────────────────────────────────────────────────────
@@ -238,7 +248,7 @@ app.get('/api/session-status', (req, res) => {
 
 // Force session refresh
 app.post('/api/force-refresh', async (req, res) => {
-  const success = await authenticateFleetComplete();
+  const success = await authenticateGeotab();
   const daysRemaining = Math.floor((new Date(sessionState.expiresAt) - new Date()) / (24 * 60 * 60 * 1000));
   
   if (success) {
@@ -258,13 +268,13 @@ app.post('/api/force-refresh', async (req, res) => {
 // Connection status
 app.get('/connection-status', async (req, res) => {
   try {
-    // Test connection by fetching vehicles
-    const vehicles = await fleetCompleteGet('/seeme/Api/Asset/Assets');
+    // Test connection by fetching devices (vehicles)
+    const devices = await geotabCall('Get', { typeName: 'Device' });
     
     res.json({
       connected: true,
       database: sessionState.database,
-      vehicleCount: vehicles?.length || 0,
+      vehicleCount: devices?.length || 0,
       sessionDaysRemaining: Math.floor((new Date(sessionState.expiresAt) - new Date()) / (24 * 60 * 60 * 1000)),
       timestamp: new Date().toISOString()
     });
@@ -278,12 +288,12 @@ app.get('/connection-status', async (req, res) => {
 
 app.get('/api/connection-status', async (req, res) => {
   try {
-    const vehicles = await fleetCompleteGet('/seeme/Api/Asset/Assets');
+    const devices = await geotabCall('Get', { typeName: 'Device' });
     
     res.json({
       connected: true,
       database: sessionState.database,
-      vehicleCount: vehicles?.length || 0,
+      vehicleCount: devices?.length || 0,
       sessionDaysRemaining: Math.floor((new Date(sessionState.expiresAt) - new Date()) / (24 * 60 * 60 * 1000)),
       timestamp: new Date().toISOString()
     });
@@ -298,10 +308,10 @@ app.get('/api/connection-status', async (req, res) => {
 // Vehicles endpoint
 app.get('/api/vehicles', async (req, res) => {
   try {
-    const vehicles = await fleetCompleteGet('/seeme/Api/Asset/Assets');
+    const devices = await geotabCall('Get', { typeName: 'Device' });
     res.json({
-      count: vehicles?.length || 0,
-      vehicles: vehicles || []
+      count: devices?.length || 0,
+      vehicles: devices || []
     });
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -311,12 +321,14 @@ app.get('/api/vehicles', async (req, res) => {
 // Fuel delivery vehicles only (RF01 & RF02)
 app.get('/api/fuel-delivery-vehicles', async (req, res) => {
   try {
-    const vehicles = await fleetCompleteGet('/seeme/Api/Asset/Assets');
-    const fuelVehicles = vehicles.filter(v => 
-      v.Description?.includes('RF01') || 
-      v.Description?.includes('RF02') ||
-      v.Description?.includes('T609') ||
-      v.Description?.includes('T408')
+    const devices = await geotabCall('Get', { typeName: 'Device' });
+    const fuelVehicles = devices.filter(v => 
+      v.name?.includes('RF01') || 
+      v.name?.includes('RF02') ||
+      v.name?.includes('T609') ||
+      v.name?.includes('T408') ||
+      v.name?.includes('CF17NN') ||
+      v.name?.includes('CE51DH')
     );
     
     res.json({
@@ -331,7 +343,7 @@ app.get('/api/fuel-delivery-vehicles', async (req, res) => {
 // Vehicle locations
 app.get('/api/vehicle-locations', async (req, res) => {
   try {
-    const locations = await fleetCompleteGet('/seeme/Api/Asset/Positions');
+    const locations = await geotabCall('Get', { typeName: 'DeviceStatusInfo' });
     res.json({
       count: locations?.length || 0,
       locations: locations || []
@@ -349,7 +361,7 @@ async function startServer() {
   // Try to load session from database, if not available authenticate fresh
   const sessionLoaded = await loadSessionFromDB();
   if (!sessionLoaded) {
-    await authenticateFleetComplete();
+    await authenticateGeotab();
   }
   
   startAutoRefresh();
@@ -357,6 +369,7 @@ async function startServer() {
   app.listen(PORT, () => {
     console.log(`RAC FleetComplete API server running on port ${PORT}`);
     console.log(`Database: ${sessionState.database}`);
+    console.log(`Geotab Server: ${GEOTAB_SERVER}`);
     console.log('Auto-refresh: active (checks every 6 hours)');
   });
 }
