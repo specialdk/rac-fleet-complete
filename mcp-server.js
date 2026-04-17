@@ -97,6 +97,60 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
         },
       },
       {
+        name: 'get_geofences',
+        description: 'Get all geofences/zones configured in FleetComplete (Rio Gantry, Quarry Depot, Mine Tank Farm, BP Garage, Gulkula Mine)',
+        inputSchema: {
+          type: 'object',
+          properties: {},
+        },
+      },
+      {
+        name: 'get_zone_events',
+        description: 'Get zone entry/exit events for geofence analysis. Optional filters: fromDate, toDate, deviceId, zoneId',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            fromDate: {
+              type: 'string',
+              description: 'Start date in ISO format (e.g., 2024-01-01T00:00:00Z)',
+            },
+            toDate: {
+              type: 'string',
+              description: 'End date in ISO format (e.g., 2024-01-31T23:59:59Z)',
+            },
+            deviceId: {
+              type: 'string',
+              description: 'Device ID to filter by specific vehicle',
+            },
+            zoneId: {
+              type: 'string',
+              description: 'Zone ID to filter by specific geofence',
+            },
+          },
+        },
+      },
+      {
+        name: 'get_trips',
+        description: 'Get trip data for fuel delivery analysis. Optional filters: fromDate, toDate, deviceId',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            fromDate: {
+              type: 'string',
+              description: 'Start date in ISO format (e.g., 2024-01-01T00:00:00Z)',
+            },
+            toDate: {
+              type: 'string',
+              description: 'End date in ISO format (e.g., 2024-01-31T23:59:59Z)',
+            },
+            deviceId: {
+              type: 'string',
+              description: 'Device ID to filter by specific vehicle',
+            },
+          },
+        },
+      },
+      {
         name: 'get_connection_status',
         description: 'Get FleetComplete API connection status including session expiry and vehicle count',
         inputSchema: {
@@ -195,6 +249,68 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
               text: JSON.stringify({
                 count: data.count,
                 locations: data.locations,
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_geofences': {
+        const data = await callAPI('/api/geofences');
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                count: data.count,
+                geofences: data.geofences,
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_zone_events': {
+        const params = new URLSearchParams();
+        if (args.fromDate) params.append('fromDate', args.fromDate);
+        if (args.toDate) params.append('toDate', args.toDate);
+        if (args.deviceId) params.append('deviceId', args.deviceId);
+        if (args.zoneId) params.append('zoneId', args.zoneId);
+        
+        const queryString = params.toString();
+        const endpoint = queryString ? `/api/zone-events?${queryString}` : '/api/zone-events';
+        const data = await callAPI(endpoint);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                count: data.count,
+                events: data.events,
+              }, null, 2),
+            },
+          ],
+        };
+      }
+
+      case 'get_trips': {
+        const params = new URLSearchParams();
+        if (args.fromDate) params.append('fromDate', args.fromDate);
+        if (args.toDate) params.append('toDate', args.toDate);
+        if (args.deviceId) params.append('deviceId', args.deviceId);
+        
+        const queryString = params.toString();
+        const endpoint = queryString ? `/api/trips?${queryString}` : '/api/trips';
+        const data = await callAPI(endpoint);
+        
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                count: data.count,
+                trips: data.trips,
               }, null, 2),
             },
           ],
