@@ -10,7 +10,12 @@ import dotenv from 'dotenv';
 
 dotenv.config();
 
-const RAILWAY_API_URL = process.env.RAILWAY_API_URL || 'http://localhost:3000';
+// Ensure Railway URL has https:// prefix
+let railwayUrl = process.env.RAILWAY_API_URL || 'http://localhost:3000';
+if (!railwayUrl.startsWith('http://') && !railwayUrl.startsWith('https://')) {
+  railwayUrl = `https://${railwayUrl}`;
+}
+const RAILWAY_API_URL = railwayUrl;
 
 // Helper function to call Railway API
 async function callAPI(endpoint) {
