@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RAC FleetComplete — Connection Manager</title>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap');
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    :root {
+      --bg-dark: #1a2332;
+      --bg-card: #222f3e;
+      --bg-surface: #2C3E50;
+      --accent: #6366F1;
+      --accent-glow: rgba(99, 102, 241, 0.15);
+      --green: #10B981;
+      --green-glow: rgba(16, 185, 129, 0.12);
+      --amber: #F59E0B;
+      --amber-glow: rgba(245, 158, 11, 0.12);
+      --red: #EF4444;
+      --red-glow: rgba(239, 68, 68, 0.12);
+      --text: #F1F5F9;
+      --text-muted: #94A3B8;
+      --border: rgba(255,255,255,0.08);
+    }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: var(--bg-dark);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+
+    .container { width: 100%; max-width: 560px; }
+
+    /* Header */
+    .logo-section { text-align: center; margin-bottom: 32px; }
+    .logo-icon { font-size: 40px; margin-bottom: 8px; }
+    .logo-title { font-size: 24px; font-weight: 700; letter-spacing: -0.5px; }
+    .logo-subtitle { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+    /* Status Banner */
+    .status-banner {
+      display: flex; align-items: center; gap: 12px;
+      padding: 14px 18px; border-radius: 10px; margin-bottom: 12px;
+      font-size: 14px; font-weight: 500; transition: all 0.3s ease;
+    }
+    .status-banner.all-good { background: var(--green-glow); border: 1px solid rgba(16,185,129,0.25); color: var(--green); }
+    .status-banner.warning  { background: var(--amber-glow); border: 1px solid rgba(245,158,11,0.25); color: var(--amber); }
+    .status-banner.error    { background: var(--red-glow);   border: 1px solid rgba(239,68,68,0.25);  color: var(--red); }
+    .status-banner.loading  { background: var(--accent-glow);border: 1px solid rgba(99,102,241,0.2);  color: var(--accent); }
+
+    .status-dot-lg { width: 10px; height: 10px; border-radius: 50%; background: currentColor; flex-shrink: 0; }
+    .status-dot-lg.pulse { animation: pulse 2s infinite; }
+    @keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.3; } }
+
+    /* Auto-refresh note */
+    .auto-note {
+      display: none; align-items: center; gap: 10px;
+      padding: 10px 16px; border-radius: 8px; margin-bottom: 16px;
+      background: rgba(99,102,241,0.08); border: 1px solid rgba(99,102,241,0.15);
+      font-size: 13px; color: var(--text-muted);
+    }
+    .auto-note.show { display: flex; }
+    .auto-note .icon { font-size: 15px; flex-shrink: 0; }
+
+    /* Session timer */
+    .session-timer {
+      display: none; align-items: center; justify-content: space-between;
+      padding: 10px 16px; border-radius: 8px; margin-bottom: 16px;
+      background: var(--bg-card); border: 1px solid var(--border);
+      font-size: 13px;
+    }
+    .session-timer.show { display: flex; }
+    .timer-label { color: var(--text-muted); }
+    .timer-value { font-weight: 600; font-size: 14px; }
+    .timer-value.healthy { color: var(--green); }
+    .timer-value.warning { color: var(--amber); }
+    .timer-value.critical { color: var(--red); }
+
+    /* Vehicle Card */
+    .entity-card {
+      background: var(--bg-card); border: 1px solid var(--border);
+      border-radius: 12px; overflow: hidden; margin-bottom: 16px;
+    }
+    .entity-card-header {
+      padding: 14px 18px; font-size: 12px; font-weight: 600;
+      color: var(--text-muted); text-transform: uppercase;
+      letter-spacing: 0.5px; border-bottom: 1px solid var(--border);
+    }
+    .entity-row {
+      display: flex; align-items: center; padding: 12px 18px;
+      border-bottom: 1px solid var(--border); transition: background 0.15s;
+    }
+    .entity-row:last-child { border-bottom: none; }
+    .entity-row:hover { background: rgba(255,255,255,0.02); }
+    .entity-emoji { font-size: 18px; width: 32px; text-align: center; flex-shrink: 0; }
+    .entity-info { flex: 1; }
+    .entity-name { font-size: 14px; font-weight: 500; }
+    .entity-desc { font-size: 11px; color: var(--text-muted); margin-top: 1px; }
+    .entity-status { display: flex; align-items: center; gap: 6px; font-size: 12px; font-weight: 500; }
+    .entity-status .dot { width: 7px; height: 7px; border-radius: 50%; }
+    .entity-status.connected { color: var(--green); }
+    .entity-status.connected .dot { background: var(--green); }
+    .entity-status.expiring { color: var(--amber); }
+    .entity-status.expiring .dot { background: var(--amber); animation: pulse 2s infinite; }
+    .entity-status.error { color: var(--red); }
+    .entity-status.error .dot { background: var(--red); }
+    .entity-status.unknown { color: var(--text-muted); }
+    .entity-status.unknown .dot { background: var(--text-muted); }
+
+    /* Buttons */
+    .btn-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .btn {
+      flex: 1; padding: 14px 20px; border: none; border-radius: 10px;
+      font-family: inherit; font-size: 15px; font-weight: 600;
+      cursor: pointer; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+    .btn-launch { background: var(--green); color: white; }
+    .btn-launch:hover:not(:disabled) { background: #0EA572; transform: translateY(-1px); box-shadow: 0 4px 16px rgba(16,185,129,0.3); }
+    .btn-refresh { background: rgba(255,255,255,0.06); color: var(--text-muted); border: 1px solid var(--border); padding: 12px 16px; font-size: 13px; }
+    .btn-refresh:hover:not(:disabled) { background: rgba(255,255,255,0.1); color: var(--text); }
+    .btn-secondary { background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid var(--border); }
+    .btn-secondary:hover:not(:disabled) { background: rgba(255,255,255,0.1); }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner { width: 14px; height: 14px; border: 2px solid currentColor; border-top-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; }
+
+    .info-text { font-size: 12px; color: var(--text-muted); text-align: center; line-height: 1.6; margin-top: 16px; }
+
+    .last-refresh { font-size: 11px; color: var(--text-muted); text-align: center; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <!-- Header -->
+    <div class="logo-section">
+      <div class="logo-icon">🚛</div>
+      <div class="logo-title">RAC FleetComplete</div>
+      <div class="logo-subtitle">Rirratjingu Aboriginal Corporation — Fleet Management</div>
+    </div>
+
+    <!-- Status Banner -->
+    <div class="status-banner loading" id="statusBanner">
+      <div class="status-dot-lg pulse"></div>
+      <span id="statusText">Checking connection...</span>
+    </div>
+
+    <!-- Auto-refresh note -->
+    <div class="auto-note" id="autoNote">
+      <span class="icon">🔄</span>
+      <span id="autoNoteText">Auto-refresh is <strong>active</strong> — session checked every 30 seconds.</span>
+    </div>
+
+    <!-- Session Timer -->
+    <div class="session-timer" id="sessionTimer">
+      <span class="timer-label">🔑 Session expires in</span>
+      <span class="timer-value" id="timerValue">—</span>
+    </div>
+
+    <!-- Fleet Vehicles Card -->
+    <div class="entity-card">
+      <div class="entity-card-header" id="vehiclesHeader">Fleet Vehicles (loading...)</div>
+
+      <div class="entity-row">
+        <span class="entity-emoji">🛻</span>
+        <div class="entity-info">
+          <div class="entity-name">RF01 T609 Kenworth</div>
+          <div class="entity-desc">License: CF17NN — Primary Fuel Delivery</div>
+        </div>
+        <span class="entity-status unknown" id="status-rf01"><span class="dot"></span> Checking...</span>
+      </div>
+
+      <div class="entity-row">
+        <span class="entity-emoji">🚚</span>
+        <div class="entity-info">
+          <div class="entity-name">RF02 T408 SAR Fuel</div>
+          <div class="entity-desc">License: CE51DH — Secondary Fuel Delivery</div>
+        </div>
+        <span class="entity-status unknown" id="status-rf02"><span class="dot"></span> Checking...</span>
+      </div>
+
+      <div class="entity-row">
+        <span class="entity-emoji">🚙</span>
+        <div class="entity-info">
+          <div class="entity-name">Other Fleet Vehicles</div>
+          <div class="entity-desc">T409, UD Prime Mover, HR Tipper, Equipment</div>
+        </div>
+        <span class="entity-status unknown" id="status-other"><span class="dot"></span> Checking...</span>
+      </div>
+    </div>
+
+    <!-- Buttons -->
+    <div class="btn-row">
+      <button class="btn btn-launch" id="btnDashboard" onclick="launchDashboard()">
+        🚀 Launch Dashboard
+      </button>
+    </div>
+    <div class="btn-row">
+      <button class="btn btn-refresh" id="btnRefresh" onclick="forceRefresh()">
+        🔄 Force Session Refresh
+      </button>
+      <button class="btn btn-secondary" onclick="openFleetComplete()">
+        🔗 Open FleetComplete
+      </button>
+    </div>
+
+    <div class="info-text">
+      Session auto-checks every 6 hours — valid for 14 days from authentication.<br>
+      If the connection fails, use Force Session Refresh to re-authenticate immediately.
+    </div>
+
+    <div class="last-refresh" id="lastRefresh"></div>
+  </div>
+
+  <script>
+    function updateTimer(days, hours) {
+      const el = document.getElementById('timerValue');
+      const timer = document.getElementById('sessionTimer');
+      timer.classList.add('show');
+
+      const label = days > 0 ? `${days}d ${hours}h` : `${hours}h`;
+      el.textContent = label;
+
+      el.className = 'timer-value';
+      if (days < 1) el.classList.add('critical');
+      else if (days < 3) el.classList.add('warning');
+      else el.classList.add('healthy');
+    }
+
+    async function checkHealth() {
+      const banner = document.getElementById('statusBanner');
+      const statusText = document.getElementById('statusText');
+      const autoNote = document.getElementById('autoNote');
+      const vehiclesHeader = document.getElementById('vehiclesHeader');
+      const lastRefresh = document.getElementById('lastRefresh');
+
+      try {
+        const [connRes, sessionRes] = await Promise.all([
+          fetch('/connection-status'),
+          fetch('/api/session-status'),
+        ]);
+
+        const conn = await connRes.json();
+        const session = await sessionRes.json();
+
+        // Update timer
+        updateTimer(session.daysRemaining || 0, session.hoursRemaining || 0);
+
+        // Update auto-refresh note
+        autoNote.classList.add('show');
+
+        if (session.lastRefresh) {
+          const d = new Date(session.lastRefresh);
+          lastRefresh.textContent = `Last refresh: ${d.toLocaleTimeString('en-AU')}`;
+        }
+
+        if (conn.connected) {
+          banner.className = 'status-banner all-good';
+          statusText.innerHTML = `✅ Connected — ${conn.vehicleCount} vehicles tracked`;
+          vehiclesHeader.textContent = `Fleet Vehicles (${conn.vehicleCount})`;
+
+          const statusClass = session.daysRemaining < 3 ? 'expiring' : 'connected';
+          const statusLabel = session.daysRemaining < 7 ? `${session.daysRemaining}d left` : `${session.daysRemaining}d`;
+
+          ['status-rf01', 'status-rf02', 'status-other'].forEach(id => {
+            const el = document.getElementById(id);
+            el.className = `entity-status ${statusClass}`;
+            el.innerHTML = `<span class="dot"></span> ${statusLabel}`;
+          });
+
+        } else {
+          banner.className = 'status-banner error';
+          statusText.innerHTML = '❌ Cannot connect to FleetComplete — session may have expired';
+          vehiclesHeader.textContent = 'Fleet Vehicles';
+          
+          ['status-rf01', 'status-rf02', 'status-other'].forEach(id => {
+            const el = document.getElementById(id);
+            el.className = 'entity-status error';
+            el.innerHTML = '<span class="dot"></span> Disconnected';
+          });
+        }
+
+      } catch (err) {
+        banner.className = 'status-banner error';
+        statusText.innerHTML = '❌ Cannot reach server';
+        
+        ['status-rf01', 'status-rf02', 'status-other'].forEach(id => {
+          const el = document.getElementById(id);
+          el.className = 'entity-status unknown';
+          el.innerHTML = '<span class="dot"></span> Offline';
+        });
+      }
+    }
+
+    async function forceRefresh() {
+      const btn = document.getElementById('btnRefresh');
+      btn.disabled = true;
+      btn.innerHTML = '<span class="spinner"></span> Refreshing...';
+
+      try {
+        const res = await fetch('/api/force-refresh', { method: 'POST' });
+        const result = await res.json();
+        await checkHealth();
+        btn.innerHTML = result.success ? `✅ Refreshed — ${result.daysRemaining}d remaining` : '❌ Refresh failed';
+      } catch {
+        btn.innerHTML = '❌ Refresh failed';
+      }
+
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.innerHTML = '🔄 Force Session Refresh';
+      }, 3000);
+    }
+
+    function launchDashboard() {
+      window.location.href = '/dashboard';
+    }
+
+    function openFleetComplete() {
+      window.open('https://app.fleetcomplete.com', '_blank');
+    }
+
+    // Init
+    checkHealth();
+    setInterval(checkHealth, 30000); // Check every 30 seconds
+  </script>
+</body>
+</html>
